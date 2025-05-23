@@ -3,28 +3,28 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 export default function TransportControls() {
   return (
-    <Card className="col-span-12 row-span-1 bg-gray-800 border-gray-700">
-      <CardHeader>
-        <CardTitle className="text-white">Transport</CardTitle>
+    <Card className="bg-neutral-700 border-neutral-600 rounded-lg">
+      <CardHeader className="pb-2">
+        <CardTitle className="text-neutral-200 text-sm font-medium">TRANSPORT</CardTitle>
       </CardHeader>
       <CardContent className="flex items-center space-x-2">
-        <Button variant="outline" className="bg-green-500 hover:bg-green-600 text-white border-green-700">
-          ▶ Play
+        <Button variant="outline" className="bg-orange-500 hover:bg-orange-600 text-white border-orange-700 h-10 w-16 text-xs">
+          ▶
         </Button>
-        <Button variant="outline" className="bg-yellow-500 hover:bg-yellow-600 text-white border-yellow-700">
-          ❚❚ Pause
+        <Button variant="outline" className="bg-neutral-600 hover:bg-neutral-500 text-neutral-200 border-neutral-500 h-10 w-16 text-xs">
+          ❚❚
         </Button>
-        <Button variant="outline" className="bg-red-500 hover:bg-red-600 text-white border-red-700">
-          ■ Stop
+        <Button variant="outline" className="bg-neutral-600 hover:bg-neutral-500 text-neutral-200 border-neutral-500 h-10 w-16 text-xs">
+          ■
         </Button>
-        <Button variant="outline" className="bg-red-700 hover:bg-red-800 text-white border-red-900">
-          ● Record
+        <Button variant="outline" className="bg-red-600 hover:bg-red-700 text-white border-red-800 h-10 w-16 text-xs">
+          ●
         </Button>
         <div className="flex items-center space-x-2 ml-auto">
-          <span className="text-gray-400">Tempo:</span>
-          <input type="number" defaultValue={120} className="w-20 bg-gray-700 border-gray-600 text-white p-1 rounded" />
-          <Button variant="outline" className="bg-gray-600 hover:bg-gray-700 text-white border-gray-500">
-            Metronome
+          <span className="text-neutral-400 text-xs">BPM</span>
+          <input type="number" defaultValue={120} className="w-16 bg-neutral-800 border-neutral-600 text-neutral-200 p-1 rounded h-10 text-sm text-center" />
+          <Button variant="outline" className="bg-neutral-600 hover:bg-neutral-500 text-neutral-200 border-neutral-500 h-10 text-xs px-3">
+            METRO
           </Button>
         </div>
       </CardContent>
