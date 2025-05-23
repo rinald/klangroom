@@ -10,21 +10,32 @@ interface SamplePadsProps {
   audioContext: AudioContext | null;
   padAssignments: PadAssignments;
   loadedSamples: Record<string, AppSample>; // Map of sampleId to AppSample
-  onPadClick: (padId: number) => void; // To notify parent for assignment logic
+  onPadClick: (padId: number) => void; // For selecting pad for assignment OR initiating play logic via parent
   playPad: (padId: number) => void;
   activePlayingPads: Record<number, boolean>; // To indicate which pads are currently playing
+  selectedPadForAssignment: number | null; // To highlight pad selected for assignment
 }
 
 export default function SamplePads({
   padAssignments,
   loadedSamples,
-  onPadClick,
+  onPadClick, // This now signals an interaction that KlangroomLayout will interpret
   playPad,
   activePlayingPads,
+  selectedPadForAssignment,
 }: SamplePadsProps) {
+  
   const handlePadInteraction = (padId: number) => {
-    onPadClick(padId); // Notify for assignment or other logic
-    playPad(padId); // Attempt to play the pad
+    onPadClick(padId); // Inform parent: user clicked this pad. Parent decides if it's for assignment or to trigger play.
+    // If not in an assignment flow (determined by parent state), the parent might call playPad, or playPad is called directly.
+    // The current KlangroomLayout logic: onPadClick sets selectedPadForAssignment, OR MainSampleArea assigns if selection exists.
+    // If pad has an assignment, playPad is the primary way to play it.
+    // If there's no assignment and no selection in MainSampleArea, clicking pad could select it (handled by onPadClick in parent).
+    // If there IS an assignment, we should prioritize playing it.
+    if(padAssignments[padId]){
+        playPad(padId);
+    }
+    // If no assignment, onPadClick informs parent, which might set it as target for new assignment.
   };
 
   return (
@@ -37,6 +48,13 @@ export default function SamplePads({
           const assignment = padAssignments[padId];
           const sample = assignment ? loadedSamples[assignment.sampleId] : null;
           const isPlaying = activePlayingPads[padId] || false;
+          const isSelectedForAssignment = selectedPadForAssignment === padId;
+
+          let padLabel = `Pad ${padId + 1}`;
+          if (sample) {
+            padLabel = sample.name.substring(0, 6) + (sample.name.length > 6 ? ".." : "");
+            if (assignment?.startTime !== undefined) padLabel += " (C)"; // Indicate Chop
+          }
 
           return (
             <Button
@@ -45,13 +63,14 @@ export default function SamplePads({
               className={`aspect-square w-full h-full 
                          border-neutral-500 text-white p-1 
                          focus:ring-1 focus:ring-orange-400 focus:outline-none 
-                         rounded-md transition-all duration-75 text-xs
-                         ${sample ? 'bg-sky-700 hover:bg-sky-600' : 'bg-neutral-600 hover:bg-neutral-500'}
-                         ${isPlaying ? 'bg-orange-500 ring-1 ring-orange-400 outline-none' : ''}`}
+                         rounded-md transition-all duration-75 text-[10px] leading-tight break-all
+                         ${isSelectedForAssignment ? 'ring-2 ring-yellow-400 bg-yellow-600' : 
+                           (sample ? (assignment?.startTime !== undefined ? 'bg-purple-700 hover:bg-purple-600' : 'bg-sky-700 hover:bg-sky-600') : 'bg-neutral-600 hover:bg-neutral-500')}
+                         ${isPlaying ? '!bg-orange-500 ring-2 !ring-orange-400 outline-none' : ''}`}
               onClick={() => handlePadInteraction(padId)}
-              data-active={isPlaying} // For potential external styling or testing
+              data-active={isPlaying}
             >
-              {sample ? sample.name.substring(0, 6) + ".." : `Pad ${padId + 1}`}
+              {padLabel}
             </Button>
           );
         })}

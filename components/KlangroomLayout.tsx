@@ -14,6 +14,7 @@ export default function KlangroomLayout() {
   const activeSourcesRef = useRef<Record<string, AudioBufferSourceNode[]>>({});
   // To track which pad initiated a playback (for visual feedback on pads)
   const [activePlayingPads, setActivePlayingPads] = useState<Record<number, boolean>>({});
+  const [selectedPadForAssignment, setSelectedPadForAssignment] = useState<number | null>(null);
 
   useEffect(() => {
     const context = new (window.AudioContext || (window as any).webkitAudioContext)();
@@ -23,19 +24,21 @@ export default function KlangroomLayout() {
     };
   }, []);
 
-  const playSampleById = useCallback((sampleId: string, associatedPadId?: number) => {
+  const playSampleById = useCallback((sampleId: string, startTime?: number, duration?: number, associatedPadId?: number) => {
     if (!audioContext || !loadedSamples[sampleId]) return;
 
     const sample = loadedSamples[sampleId];
     const source = audioContext.createBufferSource();
     source.buffer = sample.buffer;
     source.connect(audioContext.destination);
-    source.start(0);
-
-    // Store this source
-    if (!activeSourcesRef.current[sampleId]) {
-      activeSourcesRef.current[sampleId] = [];
+    
+    if (startTime !== undefined && duration !== undefined) {
+      source.start(0, startTime, duration);
+    } else {
+      source.start(0);
     }
+
+    activeSourcesRef.current[sampleId] = activeSourcesRef.current[sampleId] || [];
     activeSourcesRef.current[sampleId].push(source);
 
     if (associatedPadId !== undefined) {
@@ -44,10 +47,6 @@ export default function KlangroomLayout() {
     
     source.onended = () => {
       activeSourcesRef.current[sampleId] = activeSourcesRef.current[sampleId]?.filter(s => s !== source);
-      if (activeSourcesRef.current[sampleId]?.length === 0) {
-        // If this was the last source for this sampleId, mark as not playing
-        // This needs to be more nuanced if multiple pads can trigger the same sampleId
-      }
       if (associatedPadId !== undefined) {
         setActivePlayingPads(prev => ({ ...prev, [associatedPadId]: false }));
       }
@@ -56,18 +55,16 @@ export default function KlangroomLayout() {
 
   const stopSampleById = useCallback((sampleId: string) => {
     activeSourcesRef.current[sampleId]?.forEach(source => {
-      try { source.stop(); source.disconnect(); } catch (e) { /* already stopped */ }
+      try { source.stop(); source.disconnect(); } catch (e) { /* already stopped or disconnected */ }
     });
-    activeSourcesRef.current[sampleId] = []; // Clear out stopped sources
-    // Update visual state for any pads associated with this sampleId
+    activeSourcesRef.current[sampleId] = [];
     Object.keys(padAssignments).forEach(padIdStr => {
-        const padId = parseInt(padIdStr);
-        if(padAssignments[padId]?.sampleId === sampleId) {
-            setActivePlayingPads(prev => ({ ...prev, [padId]: false }));
-        }
+      const padId = parseInt(padIdStr);
+      if(padAssignments[padId]?.sampleId === sampleId) {
+        setActivePlayingPads(prev => ({ ...prev, [padId]: false }));
+      }
     });
-
-  }, [padAssignments]); // Added padAssignments dependency
+  }, [padAssignments]);
 
   const isSamplePlaying = useCallback((sampleId: string): boolean => {
     return (activeSourcesRef.current[sampleId]?.length || 0) > 0;
@@ -76,31 +73,39 @@ export default function KlangroomLayout() {
   const handleSampleLoad = (newSample: AppSample) => {
     setLoadedSamples(prev => ({ ...prev, [newSample.id]: newSample }));
     setLatestLoadedSampleId(newSample.id);
-    // Stop any previously playing "latest" sample if it was playing directly
     if (latestLoadedSampleId && isSamplePlaying(latestLoadedSampleId)) {
-        stopSampleById(latestLoadedSampleId);
+      stopSampleById(latestLoadedSampleId);
+    }
+    setSelectedPadForAssignment(null); // Clear any pending pad assignment
+  };
+
+  // This function is now for initiating an assignment process
+  const handlePadClick = (padId: number) => {
+    if (latestLoadedSampleId) { // If a sample is loaded and ready for chopping/assignment
+        // If there's already a selection in MainSampleArea, assign it directly
+        // This part will be handled by MainSampleArea calling assignChopToPad through its UI.
+        // For now, clicking a pad while a sample is loaded means we *select this pad for future assignment*
+        setSelectedPadForAssignment(padId);
+    } else {
+        // If no sample is loaded, or if we want pad to just play, this is handled by playPad
+        setSelectedPadForAssignment(null); // Clicking pad without loaded sample clears selection mode
     }
   };
 
-  const handlePadClick = (padId: number) => {
-    // Logic for assigning sample to pad:
-    // If a sample is loaded (latestLoadedSampleId exists) and no sample is currently assigned to this pad,
-    // or if we want to allow overriding, assign it.
-    if (latestLoadedSampleId && !padAssignments[padId]) { // Simple assignment: assign if empty
-      const newAssignment: PadAssignment = { sampleId: latestLoadedSampleId };
-      setPadAssignments(prev => ({ ...prev, [padId]: newAssignment }));
-    } else if (padAssignments[padId]) {
-        // If pad already has assignment, the playPad function (called next in SamplePads) will handle it.
-        // Or, implement logic here to clear/reassign.
-    }
-  };
+  const assignChopToPad = useCallback((padId: number, sampleId: string, startTime: number, duration: number) => {
+    const newAssignment: PadAssignment = { sampleId, startTime, duration };
+    setPadAssignments(prev => ({ ...prev, [padId]: newAssignment }));
+    setSelectedPadForAssignment(null); // Clear selection mode after assignment
+  }, []);
+
+  const clearSelectedPadForAssignment = useCallback(() => {
+    setSelectedPadForAssignment(null);
+  }, []);
 
   const playPad = (padId: number) => {
     const assignment = padAssignments[padId];
     if (assignment && loadedSamples[assignment.sampleId] && audioContext) {
-        // Check if this specific pad is already trying to play this sample (avoid retrigger issues rapidly)
-        // For now, directly call playSampleById, it handles multiple sources for the same sampleId.
-        playSampleById(assignment.sampleId, padId);
+      playSampleById(assignment.sampleId, assignment.startTime, assignment.duration, padId);
     }
   };
 
@@ -113,21 +118,24 @@ export default function KlangroomLayout() {
           <MainSampleArea
             audioContext={audioContext}
             onSampleLoad={handleSampleLoad}
-            playSample={playSampleById} // For the 'Play Loaded' button
-            stopSample={stopSampleById}   // For the 'Stop Loaded' button
-            isPlaying={isSamplePlaying} // For the 'Play/Stop Loaded' button state
+            playSample={playSampleById}
+            stopSample={stopSampleById}
+            isPlaying={isSamplePlaying}
             latestLoadedSample={latestSample}
+            assignChopToPad={assignChopToPad}
+            selectedPadForAssignment={selectedPadForAssignment}
+            clearSelectedPadForAssignment={clearSelectedPadForAssignment}
           />
         )}
       </div>
-      <div className="w-1/3 flex-none max-w-sm"> {/* Max width for pads area */}
+      <div className="w-1/3 flex-none max-w-sm">
         {audioContext && (
           <SamplePads
             audioContext={audioContext}
             padAssignments={padAssignments}
             loadedSamples={loadedSamples}
-            onPadClick={handlePadClick}
-            playPad={playPad}
+            onPadClick={handlePadClick} // Pad click now primarily for selecting pad or initiating play
+            playPad={playPad} // Explicit function to play what's on the pad
             activePlayingPads={activePlayingPads}
           />
         )}

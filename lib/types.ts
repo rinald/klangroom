@@ -7,9 +7,8 @@ export interface AppSample {
 
 export interface PadAssignment {
   sampleId: string; // ID of the AppSample
-  // Later, add start/end times for chops
-  // startTime?: number;
-  // endTime?: number;
+  startTime?: number; // Start time of the chop in seconds
+  duration?: number;  // Duration of the chop in seconds
 }
 
 // Map Pad ID (0-15) to a PadAssignment
