@@ -5,6 +5,7 @@ export const useMetronome = (
   bpm: number,
 ) => {
   const [isMetronomeActive, setIsMetronomeActive] = useState<boolean>(false);
+  const [currentBeat, setCurrentBeat] = useState(1);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
 
   const playClick = () => {
@@ -37,6 +38,7 @@ export const useMetronome = (
 
       intervalRef.current = setInterval(() => {
         playClick();
+        setCurrentBeat((beat) => (beat % 4) + 1);
       }, interval);
     } else {
       if (intervalRef.current) {
@@ -54,6 +56,7 @@ export const useMetronome = (
   }, [isMetronomeActive, audioContext, bpm]);
 
   return {
+    currentBeat,
     isMetronomeActive,
     setIsMetronomeActive,
   };

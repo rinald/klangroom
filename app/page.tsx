@@ -65,7 +65,7 @@ export default function MainPage() {
   }, [isRecording]);
 
   // Metronome scheduling logic
-  const { isMetronomeActive, setIsMetronomeActive } = useMetronome(
+  const { currentBeat, isMetronomeActive, setIsMetronomeActive } = useMetronome(
     audioContext,
     bpm,
   );
@@ -334,6 +334,7 @@ export default function MainPage() {
               quantizationValue={quantizationValue}
               isRecording={isRecording}
               setIsRecording={setIsRecording}
+              currentBeat={currentBeat}
               isMetronomeActive={isMetronomeActive}
               setIsMetronomeActive={setIsMetronomeActive}
             />

@@ -3,10 +3,11 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
-  RadioIcon as MetronomeIcon,
+  GaugeIcon as MetronomeIcon,
   DiscIcon as RecordIcon,
 } from "lucide-react";
 import { TrackLog } from "@/lib/types";
+import { cn } from "@/lib/utils";
 
 interface TrackControlsProps {
   trackLog: TrackLog;
@@ -17,6 +18,7 @@ interface TrackControlsProps {
   quantizationValue: number;
   isRecording: boolean;
   setIsRecording: React.Dispatch<React.SetStateAction<boolean>>;
+  currentBeat: number;
   isMetronomeActive: boolean;
   setIsMetronomeActive: React.Dispatch<React.SetStateAction<boolean>>;
   // Metronome props will be added later
@@ -31,6 +33,7 @@ export default function TrackControls({
   quantizationValue,
   isRecording,
   setIsRecording,
+  currentBeat,
   isMetronomeActive,
   setIsMetronomeActive,
 }: TrackControlsProps) {
@@ -85,7 +88,10 @@ export default function TrackControls({
                 isMetronomeActive ? "text-orange-400" : "text-neutral-300"
               } hover:bg-neutral-600`}
             >
-              <MetronomeIcon className="w-4 h-4" />
+              {currentBeat}
+              <MetronomeIcon
+                className={cn("w-4 h-4", currentBeat % 2 && "-scale-x-100")}
+              />
             </Button>
             <Button
               onClick={handleRecordClick}
