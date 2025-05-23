@@ -4,23 +4,26 @@ import React, { useState, useEffect, useRef, useCallback } from "react";
 import SamplePads from "@/components/SamplePads";
 import MainSampleArea from "@/components/MainSampleArea";
 import TrackControls from "@/components/TrackControls";
+import { useKeyboardControls } from "@/lib/hooks/useKeyboardControls";
 import {
+  DEFAULT_BPM,
+  DEFAULT_QUANTIZATION,
+  DEFAULT_TRACK_LENGTH_BARS,
+} from "@/lib/constants";
+
+import type {
   AppSample,
   PadAssignments,
   PadAssignment,
   TrackLog,
   TrackEvent,
 } from "@/lib/types";
-import { useKeyboardControls } from "@/lib/hooks/useKeyboardControls";
-
-const DEFAULT_BPM = 120;
-const DEFAULT_TRACK_LENGTH_BARS = 4;
-const DEFAULT_QUANTIZATION = 8; // 1/8th notes
+import { useMetronome } from "@/lib/hooks/useMetronome";
 
 export default function MainPage() {
   const [audioContext, setAudioContext] = useState<AudioContext | null>(null);
   const [loadedSamples, setLoadedSamples] = useState<Record<string, AppSample>>(
-    {}
+    {},
   );
   const [padAssignments, setPadAssignments] = useState<PadAssignments>({});
   const [latestLoadedSampleId, setLatestLoadedSampleId] = useState<
@@ -37,15 +40,13 @@ export default function MainPage() {
   >(null);
   const [bpm, setBpm] = useState<number>(DEFAULT_BPM);
   const [trackLengthBars, setTrackLengthBars] = useState<number>(
-    DEFAULT_TRACK_LENGTH_BARS
+    DEFAULT_TRACK_LENGTH_BARS,
   );
   const [quantizationValue, setQuantizationValue] =
     useState<number>(DEFAULT_QUANTIZATION);
   const [trackLog, setTrackLog] = useState<TrackLog>([]);
   const [isRecording, setIsRecording] = useState<boolean>(false);
-  const [isMetronomeActive, setIsMetronomeActive] = useState<boolean>(false);
-  const metronomeIntervalRef = useRef<NodeJS.Timeout | null>(null);
-  const nextMetronomeTimeRef = useRef<number>(0);
+
   const trackStartTimeRef = useRef<number | null>(null);
 
   useEffect(() => {
@@ -64,66 +65,10 @@ export default function MainPage() {
   }, [isRecording]);
 
   // Metronome scheduling logic
-  useEffect(() => {
-    if (isMetronomeActive && audioContext) {
-      const scheduleMetronomeClick = () => {
-        if (!isMetronomeActive || !audioContext) return; // Double check, in case state changed
-
-        // Synthesize a simple click sound
-        const clickOsc = audioContext.createOscillator();
-        const clickGain = audioContext.createGain();
-        clickOsc.type = "triangle"; // A short triangle wave can sound like a click
-        clickOsc.frequency.setValueAtTime(880, audioContext.currentTime); // A4 pitch
-        clickGain.gain.setValueAtTime(1, audioContext.currentTime);
-        clickGain.gain.exponentialRampToValueAtTime(
-          0.001,
-          audioContext.currentTime + 0.05
-        );
-        clickOsc.connect(clickGain).connect(audioContext.destination);
-
-        clickOsc.start(nextMetronomeTimeRef.current);
-        clickOsc.stop(nextMetronomeTimeRef.current + 0.05);
-
-        // Calculate next click time
-        const secondsPerBeat = 60 / bpm;
-        nextMetronomeTimeRef.current += secondsPerBeat;
-
-        // Schedule the next one
-        const lookahead = 0.1; // 100ms (how far ahead to schedule audio)
-        if (
-          nextMetronomeTimeRef.current <
-          audioContext.currentTime + lookahead + secondsPerBeat
-        ) {
-          // Check if we need to schedule more
-          // Schedule the next call to this function shortly before the next beat
-          if (metronomeIntervalRef.current)
-            clearInterval(metronomeIntervalRef.current);
-          metronomeIntervalRef.current = setTimeout(
-            scheduleMetronomeClick,
-            (nextMetronomeTimeRef.current -
-              audioContext.currentTime -
-              lookahead) *
-              1000
-          );
-        }
-      };
-
-      nextMetronomeTimeRef.current = audioContext.currentTime; // Start immediately on the next available tick
-      scheduleMetronomeClick(); // Start the scheduler
-    } else {
-      if (metronomeIntervalRef.current) {
-        clearInterval(metronomeIntervalRef.current);
-        metronomeIntervalRef.current = null;
-      }
-      nextMetronomeTimeRef.current = 0;
-    }
-
-    return () => {
-      if (metronomeIntervalRef.current) {
-        clearInterval(metronomeIntervalRef.current);
-      }
-    };
-  }, [isMetronomeActive, audioContext, bpm]);
+  const { isMetronomeActive, setIsMetronomeActive } = useMetronome(
+    audioContext,
+    bpm,
+  );
 
   const playSampleById = useCallback(
     (
@@ -131,7 +76,7 @@ export default function MainPage() {
       startTimeOffset?: number,
       duration?: number,
       onPlaybackEnd?: () => void,
-      associatedPadId?: number
+      associatedPadId?: number,
     ): AudioBufferSourceNode | undefined => {
       if (!audioContext || !loadedSamples[sampleId]) return undefined;
 
@@ -178,7 +123,7 @@ export default function MainPage() {
       };
       return source;
     },
-    [audioContext, loadedSamples]
+    [audioContext, loadedSamples],
   ); // Removed latestLoadedSampleId from dependencies as it's not directly used for source.onended logic anymore
 
   const stopSampleById = useCallback(
@@ -197,7 +142,7 @@ export default function MainPage() {
         }
       });
     },
-    [padAssignments]
+    [padAssignments],
   );
 
   const isSamplePlaying = useCallback((sampleId: string): boolean => {
@@ -214,7 +159,7 @@ export default function MainPage() {
       }
       return null;
     },
-    []
+    [],
   );
 
   const handleSampleLoad = (newSample: AppSample) => {
@@ -240,7 +185,7 @@ export default function MainPage() {
       setPadAssignments((prev) => ({ ...prev, [padId]: newAssignment }));
       setSelectedPadForAssignment(null);
     },
-    []
+    [],
   );
 
   const clearSelectedPadForAssignment = useCallback(() => {
@@ -259,7 +204,7 @@ export default function MainPage() {
 
       const timeSinceTrackStart = Math.max(
         0,
-        audioContext.currentTime - trackStartTimeRef.current
+        audioContext.currentTime - trackStartTimeRef.current,
       );
 
       const beatsPerBar = 4; // Common time signature
@@ -283,11 +228,11 @@ export default function MainPage() {
       // (60/120) / (8/4) = 0.5 / 2 = 0.25s.
 
       const quantizedStartTimeStep = Math.round(
-        timeSinceTrackStart / secondsPerQuantizedStep
+        timeSinceTrackStart / secondsPerQuantizedStep,
       );
       const quantizedDurationSteps = Math.max(
         1,
-        Math.round(eventDurationSeconds / secondsPerQuantizedStep)
+        Math.round(eventDurationSeconds / secondsPerQuantizedStep),
       );
 
       // Check if the event *starts* beyond the track length in quantized steps
@@ -304,7 +249,7 @@ export default function MainPage() {
         // Potentially cap duration so it doesn't exceed track length
         duration: Math.min(
           quantizedDurationSteps,
-          totalQuantizedStepsInTrack - quantizedStartTimeStep
+          totalQuantizedStepsInTrack - quantizedStartTimeStep,
         ),
       };
 
@@ -318,7 +263,7 @@ export default function MainPage() {
       quantizationValue,
       trackLengthBars,
       setIsRecording /*, setTrackLog*/,
-    ]
+    ],
   );
 
   const playPad = (padId: number) => {
@@ -335,7 +280,7 @@ export default function MainPage() {
         () => {
           /* Pad specific on-end logic can go here if needed */
         },
-        padId
+        padId,
       );
     }
   };

@@ -1,6 +1,6 @@
 import { useEffect, useCallback, useState } from "react";
 
-interface UseKeyboardControlsProps {
+interface Props {
   onPadDown: (padId: number) => void;
   onPadUp: (padId: number) => void;
 }
@@ -24,10 +24,7 @@ const keyMap: Record<string, number> = {
   v: 15,
 };
 
-export const useKeyboardControls = ({
-  onPadDown,
-  onPadUp,
-}: UseKeyboardControlsProps) => {
+export const useKeyboardControls = ({ onPadDown, onPadUp }: Props) => {
   const [activeKeys, setActiveKeys] = useState<Record<string, boolean>>({});
 
   const handleKeyDown = useCallback(
@@ -41,7 +38,7 @@ export const useKeyboardControls = ({
         onPadDown(padId);
       }
     },
-    [onPadDown, activeKeys]
+    [onPadDown, activeKeys],
   );
 
   const handleKeyUp = useCallback(
@@ -53,7 +50,7 @@ export const useKeyboardControls = ({
         onPadUp(padId);
       }
     },
-    [onPadUp]
+    [onPadUp],
   );
 
   useEffect(() => {
