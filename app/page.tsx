@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import SamplePads from "@/components/SamplePads";
 import MainSampleArea from "@/components/MainSampleArea";
+import TrackControls from "@/components/TrackControls";
 import { AppSample, PadAssignments, PadAssignment } from "@/lib/types";
 import { useKeyboardControls } from "@/lib/hooks/useKeyboardControls";
 
@@ -171,7 +172,16 @@ export default function MainPage() {
     }
   };
 
-  useKeyboardControls({ onPadActivate: playPad });
+  const stopPad = (padId: number) => {
+    const assignment = padAssignments[padId];
+    if (assignment && loadedSamples[assignment.sampleId]) {
+      // Find the specific source node if multiple instances of the same sample can be played by different pads
+      // For now, we assume one-to-one mapping or stop all instances of the sampleId linked to this pad.
+      stopSampleById(assignment.sampleId);
+    }
+  };
+
+  useKeyboardControls({ onPadDown: playPad, onPadUp: stopPad });
 
   const latestSample = latestLoadedSampleId
     ? loadedSamples[latestLoadedSampleId]
@@ -179,7 +189,7 @@ export default function MainPage() {
 
   return (
     <div className="flex h-screen p-4 gap-4 bg-gray-900 text-neutral-200">
-      <div className="flex-grow">
+      <div className="flex-grow flex flex-col gap-4">
         {audioContext && (
           <MainSampleArea
             audioContext={audioContext}
@@ -193,6 +203,11 @@ export default function MainPage() {
             clearSelectedPadForAssignment={clearSelectedPadForAssignment}
             getSamplePlaybackStartTime={getSamplePlaybackStartTime}
           />
+        )}
+        {audioContext && (
+          <div className="flex-grow">
+            <TrackControls />
+          </div>
         )}
       </div>
       <div className="w-1/3 flex flex-col justify-center items-center flex-none max-w-sm">

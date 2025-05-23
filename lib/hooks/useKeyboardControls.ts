@@ -1,7 +1,8 @@
-import { useEffect, useCallback } from "react";
+import { useEffect, useCallback, useState } from "react";
 
 interface UseKeyboardControlsProps {
-  onPadActivate: (padId: number) => void;
+  onPadDown: (padId: number) => void;
+  onPadUp: (padId: number) => void;
 }
 
 const keyMap: Record<string, number> = {
@@ -24,22 +25,43 @@ const keyMap: Record<string, number> = {
 };
 
 export const useKeyboardControls = ({
-  onPadActivate,
+  onPadDown,
+  onPadUp,
 }: UseKeyboardControlsProps) => {
+  const [activeKeys, setActiveKeys] = useState<Record<string, boolean>>({});
+
   const handleKeyDown = useCallback(
     (event: KeyboardEvent) => {
-      const padId = keyMap[event.key.toLowerCase()];
+      const key = event.key.toLowerCase();
+      if (activeKeys[key]) return;
+
+      const padId = keyMap[key];
       if (padId !== undefined) {
-        onPadActivate(padId);
+        setActiveKeys((prev) => ({ ...prev, [key]: true }));
+        onPadDown(padId);
       }
     },
-    [onPadActivate]
+    [onPadDown, activeKeys]
+  );
+
+  const handleKeyUp = useCallback(
+    (event: KeyboardEvent) => {
+      const key = event.key.toLowerCase();
+      const padId = keyMap[key];
+      if (padId !== undefined) {
+        setActiveKeys((prev) => ({ ...prev, [key]: false }));
+        onPadUp(padId);
+      }
+    },
+    [onPadUp]
   );
 
   useEffect(() => {
     window.addEventListener("keydown", handleKeyDown);
+    window.addEventListener("keyup", handleKeyUp);
     return () => {
       window.removeEventListener("keydown", handleKeyDown);
+      window.removeEventListener("keyup", handleKeyUp);
     };
-  }, [handleKeyDown]);
+  }, [handleKeyDown, handleKeyUp]);
 };
