@@ -1,19 +1,19 @@
-import { clsx, type ClassValue } from "clsx"
-import { twMerge } from "tailwind-merge"
+import { clsx, type ClassValue } from "clsx";
+import { twMerge } from "tailwind-merge";
 
 export function cn(...inputs: ClassValue[]) {
-  return twMerge(clsx(inputs))
+  return twMerge(clsx(inputs));
 }
 
 export function drawWaveform(
   canvas: HTMLCanvasElement,
   audioBuffer: AudioBuffer | null,
   selection?: { start: number; end: number }, // As percentage of width (0 to 1)
-  playheadPositionPercent?: number | null // Playhead position as percentage (0 to 1)
+  playheadPositionPercent?: number | null, // Playhead position as percentage (0 to 1)
 ) {
   const dpr = window.devicePixelRatio || 1;
   const rect = canvas.getBoundingClientRect();
-  
+
   // Set the canvas attribute size factoring in DPR, then style size to fit layout
   if (canvas.width !== rect.width * dpr) {
     canvas.width = rect.width * dpr;
@@ -25,8 +25,7 @@ export function drawWaveform(
   const ctx = canvas.getContext("2d");
   if (!ctx) return;
 
-  // Scale the context once for all drawing operations
-  ctx.scale(dpr, dpr);
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
   // Use the styled dimensions for drawing logic, not the attribute dimensions
   const displayWidth = rect.width;
@@ -61,7 +60,10 @@ export function drawWaveform(
     let max = -1.0;
     // Aggregate data points for each pixel on the display width
     for (let j = 0; j < step; j++) {
-      const dataIndex = Math.floor(i * (data.length / displayWidth) + j * (data.length / displayWidth / step));
+      const dataIndex = Math.floor(
+        i * (data.length / displayWidth) +
+          j * (data.length / displayWidth / step),
+      );
       if (dataIndex < data.length) {
         const datum = data[dataIndex];
         if (datum < min) min = datum;
@@ -85,7 +87,12 @@ export function drawWaveform(
   }
 
   // Draw playhead
-  if (playheadPositionPercent !== null && playheadPositionPercent !== undefined && playheadPositionPercent >= 0 && playheadPositionPercent <= 1) {
+  if (
+    playheadPositionPercent !== null &&
+    playheadPositionPercent !== undefined &&
+    playheadPositionPercent >= 0 &&
+    playheadPositionPercent <= 1
+  ) {
     ctx.strokeStyle = "#f87171"; // red-400 for playhead
     ctx.lineWidth = 1;
     const playheadX = playheadPositionPercent * displayWidth;
@@ -94,6 +101,4 @@ export function drawWaveform(
     ctx.lineTo(playheadX, displayHeight);
     ctx.stroke();
   }
-  // Reset transform to avoid issues if canvas is reused or redrawn by other functions
-  ctx.setTransform(1,0,0,1,0,0);
 }

@@ -1,17 +1,15 @@
-"use client"; // Required for useState and event handlers
-
-import React, { useState, useRef, useEffect, useCallback } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { AppSample } from "@/lib/types"; // Import shared type
-import { drawWaveform } from "@/lib/utils"; // Import the waveform utility
+import { AppSample } from "@/lib/types";
+import { drawWaveform } from "@/lib/utils";
 import {
   PlayIcon,
   PauseIcon,
   SquareIcon as StopIcon,
   UploadCloudIcon,
-} from "lucide-react"; // Using SquareIcon as StopIcon
+} from "lucide-react";
 
 interface MainSampleAreaProps {
   audioContext: AudioContext | null;
@@ -22,7 +20,7 @@ interface MainSampleAreaProps {
     sampleId: string,
     startTime?: number,
     duration?: number,
-    onEnded?: () => void
+    onEnded?: () => void,
   ) => AudioBufferSourceNode | undefined;
   stopSample: (sampleId: string) => void;
   isPlaying: (sampleId: string) => boolean;
@@ -31,7 +29,7 @@ interface MainSampleAreaProps {
     padId: number,
     sampleId: string,
     startTime: number,
-    duration: number
+    duration: number,
   ) => void;
   selectedPadForAssignment: number | null;
   clearSelectedPadForAssignment: () => void;
@@ -98,7 +96,7 @@ export default function MainSampleArea({
       currentPercent = elapsedTime / chopDuration;
       if (currentPercent > 1) currentPercent = 1; // Cap at end of chop
       setPlayheadPercent(
-        selection.start + currentPercent * (selection.end - selection.start)
+        selection.start + currentPercent * (selection.end - selection.start),
       );
     } else {
       if (currentPercent > 1) currentPercent = 1; // Cap at end of sample
@@ -140,7 +138,7 @@ export default function MainSampleArea({
         waveformCanvasRef.current,
         latestLoadedSample?.buffer ?? null,
         selection ?? undefined,
-        playheadPercent
+        playheadPercent,
       );
     }
   }, [latestLoadedSample, selection, playheadPercent]);
@@ -163,7 +161,7 @@ export default function MainSampleArea({
             onSampleLoad(newSample, file);
             setSelection(null);
           },
-          (error) => console.error("Error decoding audio data:", error)
+          (error) => console.error("Error decoding audio data:", error),
         );
       }
     },
@@ -173,11 +171,11 @@ export default function MainSampleArea({
       latestLoadedSample,
       isSamplePlayingGlobal,
       stopSample,
-    ]
+    ],
   );
 
   const handleFileChange = async (
-    event: React.ChangeEvent<HTMLInputElement>
+    event: React.ChangeEvent<HTMLInputElement>,
   ) => {
     const file = event.target.files?.[0];
     if (file) processFile(file);
@@ -193,7 +191,7 @@ export default function MainSampleArea({
         processFile(file);
       }
     },
-    [processFile]
+    [processFile],
   );
 
   const handleDragOver = (event: React.DragEvent<HTMLDivElement>) => {
@@ -225,14 +223,14 @@ export default function MainSampleArea({
           latestLoadedSample.id,
           startTime,
           chopDuration,
-          onEnded
+          onEnded,
         );
       } else {
         sourceNode = playSample(
           latestLoadedSample.id,
           undefined,
           undefined,
-          onEnded
+          onEnded,
         );
       }
       if (sourceNode) setCurrentSampleSource(sourceNode);
@@ -258,7 +256,7 @@ export default function MainSampleArea({
   }, []);
 
   const handleCanvasMouseDown = (
-    event: React.MouseEvent<HTMLCanvasElement>
+    event: React.MouseEvent<HTMLCanvasElement>,
   ) => {
     if (!latestLoadedSample) return;
     event.preventDefault();
@@ -287,7 +285,7 @@ export default function MainSampleArea({
         selectedPadForAssignment,
         latestLoadedSample.id,
         startTime,
-        chopDuration
+        chopDuration,
       );
       setSelection(null); // Optionally clear selection after assignment
       clearSelectedPadForAssignment(); // Clear the selected pad
@@ -314,7 +312,7 @@ export default function MainSampleArea({
         end: Math.max(dragStartPercentRef.current, currentPercent),
       });
     },
-    [isSelecting, latestLoadedSample, getMousePositionPercent]
+    [isSelecting, latestLoadedSample, getMousePositionPercent],
   );
 
   const handleGlobalMouseUp = useCallback(() => {
@@ -420,9 +418,14 @@ export default function MainSampleArea({
               </div>
             ) : (
               <p className="text-neutral-400 text-sm text-center">
-                Drag & Drop Audio File Here or Click{" "}
-                <UploadCloudIcon className="w-3 h-3 inline-block mx-1" />
-                Load
+                <label
+                  htmlFor="file-upload"
+                  className="cursor-pointer flex items-center"
+                >
+                  Drag & Drop Audio File Here or Click{" "}
+                  <UploadCloudIcon className="w-3 h-3 inline-block mx-1" />
+                  Load
+                </label>
               </p>
             )}
           </div>
