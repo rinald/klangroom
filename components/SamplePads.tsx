@@ -3,6 +3,7 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { AppSample, PadAssignments } from "@/lib/types";
+import { cn } from "@/lib/utils";
 
 const padCount = 16; // 4x4 grid
 
@@ -19,54 +20,54 @@ interface SamplePadsProps {
 export default function SamplePads({
   padAssignments,
   loadedSamples,
-  onPadClick, // This now signals an interaction that KlangroomLayout will interpret
+  onPadClick, 
   playPad,
   activePlayingPads,
   selectedPadForAssignment,
 }: SamplePadsProps) {
   
   const handlePadInteraction = (padId: number) => {
-    onPadClick(padId); // Inform parent: user clicked this pad. Parent decides if it's for assignment or to trigger play.
-    // If not in an assignment flow (determined by parent state), the parent might call playPad, or playPad is called directly.
-    // The current KlangroomLayout logic: onPadClick sets selectedPadForAssignment, OR MainSampleArea assigns if selection exists.
-    // If pad has an assignment, playPad is the primary way to play it.
-    // If there's no assignment and no selection in MainSampleArea, clicking pad could select it (handled by onPadClick in parent).
-    // If there IS an assignment, we should prioritize playing it.
+    onPadClick(padId); 
+    
     if(padAssignments[padId]){
-        playPad(padId);
-    }
-    // If no assignment, onPadClick informs parent, which might set it as target for new assignment.
+      playPad(padId);
+    } 
   };
 
   return (
-    <Card className="bg-neutral-700 border-neutral-600 rounded-lg flex flex-col h-full">
-      <CardHeader className="pb-2 pt-3">
-        <CardTitle className="text-neutral-200 text-sm font-medium text-center">PADS</CardTitle>
+    <Card className="bg-neutral-700 border-neutral-600 rounded-lg flex flex-col w-full">
+      <CardHeader className="py-2">
+        <CardTitle className="text-neutral-400 text-xs font-normal tracking-wider text-center">PAD BANK</CardTitle>
       </CardHeader>
-      <CardContent className="flex-grow grid grid-cols-4 gap-2 p-3">
+      <CardContent className="flex-grow grid grid-cols-4 gap-2 p-2">
         {Array.from({ length: padCount }).map((_, padId) => {
           const assignment = padAssignments[padId];
           const sample = assignment ? loadedSamples[assignment.sampleId] : null;
           const isPlaying = activePlayingPads[padId] || false;
           const isSelectedForAssignment = selectedPadForAssignment === padId;
 
-          let padLabel = `Pad ${padId + 1}`;
+          let padLabel = ""; // Default to no label like KO II
           if (sample) {
-            padLabel = sample.name.substring(0, 6) + (sample.name.length > 6 ? ".." : "");
-            if (assignment?.startTime !== undefined) padLabel += " (C)"; // Indicate Chop
+            padLabel = sample.name.substring(0, 4) + (sample.name.length > 4 ? ".." : "");
+            if (assignment?.startTime !== undefined) padLabel += "[C]"; 
           }
 
           return (
             <Button
               key={padId}
               variant="outline"
-              className={`aspect-square w-full h-full 
-                         border-neutral-500 text-white p-1 
-                         focus:ring-1 focus:ring-orange-400 focus:outline-none 
-                         rounded-md transition-all duration-75 text-[10px] leading-tight break-all
-                         ${isSelectedForAssignment ? 'ring-2 ring-yellow-400 bg-yellow-600' : 
-                           (sample ? (assignment?.startTime !== undefined ? 'bg-purple-700 hover:bg-purple-600' : 'bg-sky-700 hover:bg-sky-600') : 'bg-neutral-600 hover:bg-neutral-500')}
-                         ${isPlaying ? '!bg-orange-500 ring-2 !ring-orange-400 outline-none' : ''}`}
+              className={cn(
+                "aspect-square w-full h-full p-1",
+                "border",
+                "focus:ring-2 focus:ring-offset-2 focus:ring-offset-neutral-700 focus:ring-orange-400 focus:outline-none",
+                "rounded-md transition-all duration-100 text-[9px] leading-tight break-words",
+                "flex items-center justify-center",
+                isSelectedForAssignment && "bg-yellow-500 border-yellow-400 text-neutral-800 ring-2 ring-yellow-300",
+                !isSelectedForAssignment && sample && assignment?.startTime !== undefined && "bg-purple-600 border-purple-500 hover:bg-purple-500 text-neutral-100",
+                !isSelectedForAssignment && sample && assignment?.startTime === undefined && "bg-sky-600 border-sky-500 hover:bg-sky-500 text-neutral-100", 
+                !isSelectedForAssignment && !sample && "bg-neutral-800 border-neutral-600 hover:bg-neutral-700 text-neutral-400",
+                isPlaying && "!bg-orange-500 !border-orange-400 !text-white ring-2 ring-orange-300 ring-offset-2 ring-offset-neutral-700"
+              )}
               onClick={() => handlePadInteraction(padId)}
               data-active={isPlaying}
             >

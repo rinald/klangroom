@@ -1,25 +1,26 @@
 "use client"; // Required for useState and event handlers
 
 import React, { useState, useRef, useEffect, useCallback } from "react";
-import TransportControls from "./TransportControls";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { AppSample } from "@/lib/types"; // Import shared type
 import { drawWaveform } from "@/lib/utils"; // Import the waveform utility
+import { PlayIcon, PauseIcon, SquareIcon as StopIcon, UploadCloudIcon } from "lucide-react"; // Using SquareIcon as StopIcon
 
 interface MainSampleAreaProps {
   audioContext: AudioContext | null;
   onSampleLoad: (sample: AppSample, file?: File) => void; // Added File for potential re-use
   // We might not need currentMasterSample here if we manage global playback differently
   // currentMasterSample: AppSample | null; 
-  playSample: (sampleId: string, startTime?: number, duration?: number) => void;
+  playSample: (sampleId: string, startTime?: number, duration?: number, onEnded?: () => void) => AudioBufferSourceNode | undefined;
   stopSample: (sampleId: string) => void;
   isPlaying: (sampleId: string) => boolean;
   latestLoadedSample: AppSample | null; // To display name and control its playback
   assignChopToPad: (padId: number, sampleId: string, startTime: number, duration: number) => void;
   selectedPadForAssignment: number | null;
   clearSelectedPadForAssignment: () => void;
+  getSamplePlaybackStartTime: (sampleId: string) => number | null; // To get AudioContext time when sample started
 }
 
 export default function MainSampleArea({
@@ -27,45 +28,93 @@ export default function MainSampleArea({
   onSampleLoad,
   playSample,
   stopSample,
-  isPlaying,
+  isPlaying: isSamplePlayingGlobal, // Renamed to avoid conflict
   latestLoadedSample,
   assignChopToPad,
   selectedPadForAssignment,
   clearSelectedPadForAssignment,
+  getSamplePlaybackStartTime,
 }: MainSampleAreaProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const waveformCanvasRef = useRef<HTMLCanvasElement>(null);
   const [isSelecting, setIsSelecting] = useState(false); // Renamed from isDragging for clarity
   const [selection, setSelection] = useState<{ start: number; end: number } | null>(null);
   const dragStartPercentRef = useRef<number | null>(null); // Using ref for drag start, doesn't need to trigger re-render
+  const [playheadPercent, setPlayheadPercent] = useState<number | null>(null);
+  const animationFrameRef = useRef<number>(0);
+  const [currentSampleSource, setCurrentSampleSource] = useState<AudioBufferSourceNode | null>(null);
 
-  // Redraw waveform when sample or selection changes
-  useEffect(() => {
-    if (waveformCanvasRef.current && latestLoadedSample) {
-      drawWaveform(waveformCanvasRef.current, latestLoadedSample.buffer, selection ?? undefined);
-    } else if (waveformCanvasRef.current) {
-      drawWaveform(waveformCanvasRef.current, null, undefined);
+  // Function to update playhead
+  const updatePlayhead = useCallback(() => {
+    if (!audioContext || !latestLoadedSample || !isSamplePlayingGlobal(latestLoadedSample.id)) {
+      setPlayheadPercent(null);
+      if (animationFrameRef.current) cancelAnimationFrame(animationFrameRef.current);
+      return;
     }
-  }, [latestLoadedSample, selection]); // waveformCanvasRef shouldn't be a dependency here
+
+    const sampleStartTime = getSamplePlaybackStartTime(latestLoadedSample.id);
+    if (sampleStartTime === null) {
+        setPlayheadPercent(null); // Not playing or start time unknown
+        if (animationFrameRef.current) cancelAnimationFrame(animationFrameRef.current);
+        return;
+    }
+
+    const elapsedTime = audioContext.currentTime - sampleStartTime;
+    let currentPercent = elapsedTime / latestLoadedSample.buffer.duration;
+    
+    let chopStartTime = 0;
+    let chopDuration = latestLoadedSample.buffer.duration;
+
+    if(selection && selection.end > selection.start && currentSampleSource) {
+        // If a chop was played, playhead is relative to the chop
+        chopStartTime = selection.start * latestLoadedSample.buffer.duration;
+        chopDuration = (selection.end - selection.start) * latestLoadedSample.buffer.duration;
+        currentPercent = elapsedTime / chopDuration;
+        if (currentPercent > 1) currentPercent = 1; // Cap at end of chop
+        setPlayheadPercent(selection.start + (currentPercent * (selection.end - selection.start)));
+    } else {
+        if (currentPercent > 1) currentPercent = 1; // Cap at end of sample
+        setPlayheadPercent(currentPercent);
+    }
+
+    if (currentPercent < 1) {
+      animationFrameRef.current = requestAnimationFrame(updatePlayhead);
+    } else {
+      setPlayheadPercent(null); // Reset when done
+      // isPlaying state should be updated by onEnded callback from parent
+    }
+  }, [audioContext, latestLoadedSample, isSamplePlayingGlobal, selection, getSamplePlaybackStartTime, currentSampleSource]);
+
+  useEffect(() => {
+    if (latestLoadedSample && isSamplePlayingGlobal(latestLoadedSample.id)) {
+      animationFrameRef.current = requestAnimationFrame(updatePlayhead);
+    } else {
+      setPlayheadPercent(null);
+      if (animationFrameRef.current) cancelAnimationFrame(animationFrameRef.current);
+    }
+    return () => {
+      if (animationFrameRef.current) cancelAnimationFrame(animationFrameRef.current);
+    };
+  }, [latestLoadedSample, isSamplePlayingGlobal, updatePlayhead]);
+
+  useEffect(() => {
+    if (waveformCanvasRef.current) {
+      drawWaveform(waveformCanvasRef.current, latestLoadedSample?.buffer ?? null, selection ?? undefined, playheadPercent);
+    }
+  }, [latestLoadedSample, selection, playheadPercent]);
 
   const processFile = useCallback(async (file: File) => {
     if (audioContext) {
+      setPlayheadPercent(null);
+      if (latestLoadedSample && isSamplePlayingGlobal(latestLoadedSample.id)) stopSample(latestLoadedSample.id);
       const arrayBuffer = await file.arrayBuffer();
-      audioContext.decodeAudioData(
-        arrayBuffer,
-        (audioBuffer) => {
-          const newSample: AppSample = {
-            id: Date.now().toString(),
-            name: file.name,
-            buffer: audioBuffer,
-          };
-          onSampleLoad(newSample, file);
-          setSelection(null); // Reset selection on new sample load
-        },
-        (error) => console.error("Error decoding audio data:", error)
-      );
+      audioContext.decodeAudioData(arrayBuffer, (audioBuffer) => {
+        const newSample: AppSample = { id: Date.now().toString(), name: file.name, buffer: audioBuffer };
+        onSampleLoad(newSample, file);
+        setSelection(null);
+      }, (error) => console.error("Error decoding audio data:", error));
     }
-  }, [audioContext, onSampleLoad]);
+  }, [audioContext, onSampleLoad, latestLoadedSample, isSamplePlayingGlobal, stopSample]);
 
   const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -87,22 +136,39 @@ export default function MainSampleArea({
     event.stopPropagation();
   };
 
-  const toggleMasterPlay = () => {
-    if (latestLoadedSample) {
-      if (isPlaying(latestLoadedSample.id)) {
-        stopSample(latestLoadedSample.id);
+  const handlePlayPauseSample = () => {
+    if (!latestLoadedSample) return;
+    if (isSamplePlayingGlobal(latestLoadedSample.id)) {
+      stopSample(latestLoadedSample.id);
+      setCurrentSampleSource(null);
+      if (animationFrameRef.current) cancelAnimationFrame(animationFrameRef.current);
+      setPlayheadPercent(null); 
+    } else {
+      let sourceNode;
+      const onEnded = () => {
+        setCurrentSampleSource(null);
+        setPlayheadPercent(null); // Ensure playhead resets on natural end
+         // Global playing state is handled by KlangroomLayout's onEnded
+      };
+
+      if (selection && selection.end > selection.start) {
+        const duration = latestLoadedSample.buffer.duration;
+        const startTime = selection.start * duration;
+        const chopDuration = (selection.end - selection.start) * duration;
+        sourceNode = playSample(latestLoadedSample.id, startTime, chopDuration, onEnded);
       } else {
-        // Play full sample or selected region if available?
-        // For now, plays full sample or selected chop based on context
-        if (selection && selection.end > selection.start) {
-            const duration = latestLoadedSample.buffer.duration;
-            const startTime = selection.start * duration;
-            const chopDuration = (selection.end - selection.start) * duration;
-            playSample(latestLoadedSample.id, startTime, chopDuration);
-        } else {
-            playSample(latestLoadedSample.id);
-        }
+        sourceNode = playSample(latestLoadedSample.id, undefined, undefined, onEnded);
       }
+      if(sourceNode) setCurrentSampleSource(sourceNode);
+    }
+  };
+
+  const handleStopSample = () => {
+    if (latestLoadedSample) {
+        stopSample(latestLoadedSample.id);
+        setCurrentSampleSource(null);
+        if (animationFrameRef.current) cancelAnimationFrame(animationFrameRef.current);
+        setPlayheadPercent(null);
     }
   };
 
@@ -117,6 +183,10 @@ export default function MainSampleArea({
   const handleCanvasMouseDown = (event: React.MouseEvent<HTMLCanvasElement>) => {
     if (!latestLoadedSample) return;
     event.preventDefault();
+    // If playing, stop and reset playhead before selection
+    if (isSamplePlayingGlobal(latestLoadedSample.id)) {
+        handleStopSample();
+    }
     const startPercent = getMousePositionPercent(event.clientX);
     setIsSelecting(true);
     dragStartPercentRef.current = startPercent;
@@ -170,54 +240,66 @@ export default function MainSampleArea({
 
   return (
     <div className="flex flex-col space-y-4 h-full">
-      <TransportControls /> {/* This will become more interactive later */}
+      {/* <TransportControls /> */}
       <Card className="flex-grow bg-neutral-700 border-neutral-600 rounded-lg flex flex-col">
         <CardHeader className="pb-2 pt-3 flex flex-row justify-between items-center">
           <CardTitle className="text-neutral-200 text-sm font-medium">SAMPLE CONTROL</CardTitle>
           <div className="flex items-center space-x-2">
-            <Button asChild variant="outline" className="bg-orange-500 hover:bg-orange-600 text-white text-xs h-8">
-              <label htmlFor="file-upload" className="cursor-pointer">Load File</label>
+            <Button asChild variant="outline" className="bg-orange-500 hover:bg-orange-600 text-white text-xs h-8 px-3">
+              <label htmlFor="file-upload" className="cursor-pointer flex items-center"><UploadCloudIcon className="w-3 h-3 mr-1.5" /> Load</label>
             </Button>
             <Input ref={fileInputRef} id="file-upload" type="file" accept="audio/*" onChange={handleFileChange} className="hidden" />
-            {latestLoadedSample && (
-              <Button
-                onClick={toggleMasterPlay}
-                variant="outline"
-                className={`text-xs h-8 ${isPlaying(latestLoadedSample.id) ? 'bg-red-600 hover:bg-red-700' : 'bg-green-600 hover:bg-green-700'} text-white border-none`}
-              >
-                {isPlaying(latestLoadedSample.id) ? "Stop" : "Play"} {selection && selection.end > selection.start ? "Chop" : "Sample"}
-              </Button>
-            )}
+            
             {latestLoadedSample && selection && selection.end > selection.start && selectedPadForAssignment === null && (
-                 <p className="text-xs text-orange-400">Click a pad to assign selection</p>
+                 <p className="text-xs text-orange-400 animate-pulse">Click a pad to assign selection</p>
             )}
             {latestLoadedSample && selection && selection.end > selection.start && selectedPadForAssignment !== null && (
-                <Button onClick={handleAssignToSelectedPad} className="bg-sky-500 hover:bg-sky-600 text-white text-xs h-8">
+                <Button onClick={handleAssignToSelectedPad} className="bg-sky-500 hover:bg-sky-600 text-white text-xs h-8 px-3">
                     Assign to Pad {selectedPadForAssignment + 1}
                 </Button>
             )}
           </div>
         </CardHeader>
-        <CardContent className="flex-grow flex flex-col items-center justify-center p-3 space-y-3">
+        <CardContent className="flex-grow flex flex-col items-center justify-center p-3 space-y-2">
           <div
             onDrop={handleDrop}
             onDragOver={handleDragOver}
-            className="w-full h-1/4 border border-dashed border-neutral-500 rounded-md flex items-center justify-center bg-neutral-800/30 cursor-pointer hover:border-orange-400 transition-colors"
+            className="w-full h-[60px] border border-dashed border-neutral-500 rounded-md flex items-center justify-center bg-neutral-800/30 cursor-pointer hover:border-orange-400 transition-colors p-2"
           >
             {latestLoadedSample ? (
-              <p className="text-neutral-300 text-sm px-2 text-center">Loaded: {latestLoadedSample.name}</p>
+              <div className="text-center">
+                <p className="text-neutral-300 text-xs">Loaded: {latestLoadedSample.name}</p>
+                <p className="text-neutral-400 text-[10px]">Duration: {latestLoadedSample.buffer.duration.toFixed(2)}s</p>
+              </div>
             ) : (
-              <p className="text-neutral-400 text-sm">Drag & Drop Audio File Here or Click \"Load File\"</p>
+              <p className="text-neutral-400 text-sm text-center">Drag & Drop Audio File Here or Click <UploadCloudIcon className="w-3 h-3 inline-block mx-1" /> Load</p>
             )}
           </div>
-          <div className="w-full h-3/4 bg-neutral-800/50 rounded-md relative overflow-hidden border border-neutral-600">
+          {/* Waveform and its controls */} 
+          <div className="w-full flex-grow bg-neutral-800/50 rounded-md relative overflow-hidden border border-neutral-600 flex flex-col justify-between">
             <canvas
               ref={waveformCanvasRef}
-              width={600} // Initial width, consider making responsive
-              height={150} // Initial height
-              className="w-full h-full cursor-crosshair"
+              width={600} 
+              height={120} // Adjusted height a bit
+              className="w-full flex-grow cursor-crosshair"
               onMouseDown={handleCanvasMouseDown}
             />
+            {latestLoadedSample && (
+            <div className="p-1.5 bg-neutral-700/50 border-t border-neutral-600 flex items-center justify-center space-x-2">
+                <Button onClick={handlePlayPauseSample} variant="ghost" size="sm" className="text-neutral-200 hover:bg-neutral-600 h-7 px-2">
+                    {isSamplePlayingGlobal(latestLoadedSample.id) ? <PauseIcon className="w-4 h-4"/> : <PlayIcon className="w-4 h-4"/>}
+                </Button>
+                <Button onClick={handleStopSample} variant="ghost" size="sm" className="text-neutral-200 hover:bg-neutral-600 h-7 px-2">
+                    <StopIcon className="w-4 h-4"/>
+                </Button>
+                 <span className="text-xs text-neutral-400">
+                    {selection ? 
+                        `Sel: ${(selection.start * latestLoadedSample.buffer.duration).toFixed(2)}s - ${(selection.end * latestLoadedSample.buffer.duration).toFixed(2)}s` :
+                        'No selection'
+                    }
+                </span>
+            </div>
+            )}
           </div>
         </CardContent>
       </Card>
