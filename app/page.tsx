@@ -4,8 +4,18 @@ import React, { useState, useEffect, useRef, useCallback } from "react";
 import SamplePads from "@/components/SamplePads";
 import MainSampleArea from "@/components/MainSampleArea";
 import TrackControls from "@/components/TrackControls";
-import { AppSample, PadAssignments, PadAssignment } from "@/lib/types";
+import {
+  AppSample,
+  PadAssignments,
+  PadAssignment,
+  TrackLog,
+  TrackEvent,
+} from "@/lib/types";
 import { useKeyboardControls } from "@/lib/hooks/useKeyboardControls";
+
+const DEFAULT_BPM = 120;
+const DEFAULT_TRACK_LENGTH_BARS = 4;
+const DEFAULT_QUANTIZATION = 8; // 1/8th notes
 
 export default function MainPage() {
   const [audioContext, setAudioContext] = useState<AudioContext | null>(null);
@@ -25,6 +35,18 @@ export default function MainPage() {
   const [selectedPadForAssignment, setSelectedPadForAssignment] = useState<
     number | null
   >(null);
+  const [bpm, setBpm] = useState<number>(DEFAULT_BPM);
+  const [trackLengthBars, setTrackLengthBars] = useState<number>(
+    DEFAULT_TRACK_LENGTH_BARS
+  );
+  const [quantizationValue, setQuantizationValue] =
+    useState<number>(DEFAULT_QUANTIZATION);
+  const [trackLog, setTrackLog] = useState<TrackLog>([]);
+  const [isRecording, setIsRecording] = useState<boolean>(false);
+  const [isMetronomeActive, setIsMetronomeActive] = useState<boolean>(false);
+  const metronomeIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const nextMetronomeTimeRef = useRef<number>(0);
+  const trackStartTimeRef = useRef<number | null>(null);
 
   useEffect(() => {
     const context = new (window.AudioContext ||
@@ -34,6 +56,74 @@ export default function MainPage() {
       context.close();
     };
   }, []);
+
+  useEffect(() => {
+    if (!isRecording) {
+      trackStartTimeRef.current = null;
+    }
+  }, [isRecording]);
+
+  // Metronome scheduling logic
+  useEffect(() => {
+    if (isMetronomeActive && audioContext) {
+      const scheduleMetronomeClick = () => {
+        if (!isMetronomeActive || !audioContext) return; // Double check, in case state changed
+
+        // Synthesize a simple click sound
+        const clickOsc = audioContext.createOscillator();
+        const clickGain = audioContext.createGain();
+        clickOsc.type = "triangle"; // A short triangle wave can sound like a click
+        clickOsc.frequency.setValueAtTime(880, audioContext.currentTime); // A4 pitch
+        clickGain.gain.setValueAtTime(1, audioContext.currentTime);
+        clickGain.gain.exponentialRampToValueAtTime(
+          0.001,
+          audioContext.currentTime + 0.05
+        );
+        clickOsc.connect(clickGain).connect(audioContext.destination);
+
+        clickOsc.start(nextMetronomeTimeRef.current);
+        clickOsc.stop(nextMetronomeTimeRef.current + 0.05);
+
+        // Calculate next click time
+        const secondsPerBeat = 60 / bpm;
+        nextMetronomeTimeRef.current += secondsPerBeat;
+
+        // Schedule the next one
+        const lookahead = 0.1; // 100ms (how far ahead to schedule audio)
+        if (
+          nextMetronomeTimeRef.current <
+          audioContext.currentTime + lookahead + secondsPerBeat
+        ) {
+          // Check if we need to schedule more
+          // Schedule the next call to this function shortly before the next beat
+          if (metronomeIntervalRef.current)
+            clearInterval(metronomeIntervalRef.current);
+          metronomeIntervalRef.current = setTimeout(
+            scheduleMetronomeClick,
+            (nextMetronomeTimeRef.current -
+              audioContext.currentTime -
+              lookahead) *
+              1000
+          );
+        }
+      };
+
+      nextMetronomeTimeRef.current = audioContext.currentTime; // Start immediately on the next available tick
+      scheduleMetronomeClick(); // Start the scheduler
+    } else {
+      if (metronomeIntervalRef.current) {
+        clearInterval(metronomeIntervalRef.current);
+        metronomeIntervalRef.current = null;
+      }
+      nextMetronomeTimeRef.current = 0;
+    }
+
+    return () => {
+      if (metronomeIntervalRef.current) {
+        clearInterval(metronomeIntervalRef.current);
+      }
+    };
+  }, [isMetronomeActive, audioContext, bpm]);
 
   const playSampleById = useCallback(
     (
@@ -157,9 +247,87 @@ export default function MainPage() {
     setSelectedPadForAssignment(null);
   }, []);
 
+  const recordTrackEvent = useCallback(
+    (padId: number, eventDurationSeconds: number) => {
+      if (!isRecording || !audioContext) return;
+
+      if (trackStartTimeRef.current === null) {
+        trackStartTimeRef.current = audioContext.currentTime;
+        // Optionally clear trackLog here if new recording should always start fresh
+        // setTrackLog([]);
+      }
+
+      const timeSinceTrackStart = Math.max(
+        0,
+        audioContext.currentTime - trackStartTimeRef.current
+      );
+
+      const beatsPerBar = 4; // Common time signature
+      const totalBeatsInTrack = trackLengthBars * beatsPerBar;
+      const totalSecondsInTrack = (totalBeatsInTrack / bpm) * 60;
+
+      // Stop recording if the current time is beyond the track length
+      if (timeSinceTrackStart >= totalSecondsInTrack) {
+        console.log("Track length exceeded, stopping recording.");
+        setIsRecording(false);
+        return;
+      }
+
+      const beatsPerSecond = bpm / 60;
+      const secondsPerBeat = 1 / beatsPerSecond;
+      const stepsPerBeat = quantizationValue / (beatsPerBar / 4); // e.g. quantization 8 (1/8th notes), 4 beats -> 8 / (4/4) = 8 steps per beat (incorrect, should be 2 for 1/8th)
+      // Corrected: stepsPerBeat is effectively quantizationValue / beatsPerBar if quantization is per bar.
+      // Or more simply: secondsPerQuantizedStep directly
+      const secondsPerQuantizedStep = 60 / bpm / (quantizationValue / 4); // (secondsPerBeat) / (stepsPerBeat / beatsPerBar)
+      // Example: 120 BPM (0.5s per beat). Quantization 8 (1/8th notes) means 2 steps per beat. So 0.25s per step.
+      // (60/120) / (8/4) = 0.5 / 2 = 0.25s.
+
+      const quantizedStartTimeStep = Math.round(
+        timeSinceTrackStart / secondsPerQuantizedStep
+      );
+      const quantizedDurationSteps = Math.max(
+        1,
+        Math.round(eventDurationSeconds / secondsPerQuantizedStep)
+      );
+
+      // Check if the event *starts* beyond the track length in quantized steps
+      const totalQuantizedStepsInTrack = trackLengthBars * quantizationValue; // If quantizationValue is steps per bar
+      if (quantizedStartTimeStep >= totalQuantizedStepsInTrack) {
+        console.log("Event starts beyond track length, stopping recording.");
+        setIsRecording(false);
+        return;
+      }
+
+      const newEvent: TrackEvent = {
+        padId,
+        startTime: quantizedStartTimeStep,
+        // Potentially cap duration so it doesn't exceed track length
+        duration: Math.min(
+          quantizedDurationSteps,
+          totalQuantizedStepsInTrack - quantizedStartTimeStep
+        ),
+      };
+
+      console.log("New Track Event (recorded):", newEvent);
+      setTrackLog((prevLog) => [...prevLog, newEvent]);
+    },
+    [
+      isRecording,
+      audioContext,
+      bpm,
+      quantizationValue,
+      trackLengthBars,
+      setIsRecording /*, setTrackLog*/,
+    ]
+  );
+
   const playPad = (padId: number) => {
     const assignment = padAssignments[padId];
     if (assignment && loadedSamples[assignment.sampleId] && audioContext) {
+      const sampleDuration = loadedSamples[assignment.sampleId].buffer.duration;
+      const chopDuration = assignment.duration ?? sampleDuration;
+      recordTrackEvent(padId, chopDuration);
+
       playSampleById(
         assignment.sampleId,
         assignment.startTime,
@@ -167,7 +335,7 @@ export default function MainPage() {
         () => {
           /* Pad specific on-end logic can go here if needed */
         },
-        padId // associatedPadId is the last argument
+        padId
       );
     }
   };
@@ -188,8 +356,9 @@ export default function MainPage() {
     : null;
 
   return (
-    <div className="flex h-screen p-4 gap-4 bg-gray-900 text-neutral-200">
-      <div className="flex-grow flex flex-col gap-4">
+    <div className="flex flex-col h-screen p-4 gap-4 bg-gray-900 text-neutral-200">
+      {/* Top: Sample Control Area - takes initial height, doesn't grow or shrink as much */}
+      <div className="flex-shrink-0">
         {audioContext && (
           <MainSampleArea
             audioContext={audioContext}
@@ -204,24 +373,42 @@ export default function MainPage() {
             getSamplePlaybackStartTime={getSamplePlaybackStartTime}
           />
         )}
-        {audioContext && (
-          <div className="flex-grow">
-            <TrackControls />
-          </div>
-        )}
       </div>
-      <div className="w-1/3 flex flex-col justify-center items-center flex-none max-w-sm">
-        {audioContext && (
-          <SamplePads
-            audioContext={audioContext}
-            padAssignments={padAssignments}
-            loadedSamples={loadedSamples}
-            onPadClick={handlePadClick}
-            playPad={playPad}
-            activePlayingPads={activePlayingPads}
-            selectedPadForAssignment={selectedPadForAssignment}
-          />
-        )}
+
+      {/* Bottom: Track Controls and Pad Bank - takes remaining space and arranged in a row */}
+      <div className="flex-grow flex flex-row gap-4 overflow-hidden">
+        {/* Left: Track Controls - takes most of the space in this row */}
+        <div className="flex-grow flex flex-col overflow-hidden">
+          {audioContext && (
+            <TrackControls
+              trackLog={trackLog}
+              bpm={bpm}
+              setBpm={setBpm}
+              trackLengthBars={trackLengthBars}
+              setTrackLengthBars={setTrackLengthBars}
+              quantizationValue={quantizationValue}
+              isRecording={isRecording}
+              setIsRecording={setIsRecording}
+              isMetronomeActive={isMetronomeActive}
+              setIsMetronomeActive={setIsMetronomeActive}
+            />
+          )}
+        </div>
+
+        {/* Right: Pad Bank - fixed width or flex-shrink as needed */}
+        <div className="w-1/3 flex flex-col justify-center items-center flex-none max-w-sm">
+          {audioContext && (
+            <SamplePads
+              audioContext={audioContext}
+              padAssignments={padAssignments}
+              loadedSamples={loadedSamples}
+              onPadClick={handlePadClick}
+              playPad={playPad}
+              activePlayingPads={activePlayingPads}
+              selectedPadForAssignment={selectedPadForAssignment}
+            />
+          )}
+        </div>
       </div>
     </div>
   );
