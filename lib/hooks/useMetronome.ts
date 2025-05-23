@@ -5,66 +5,50 @@ export const useMetronome = (
   bpm: number,
 ) => {
   const [isMetronomeActive, setIsMetronomeActive] = useState<boolean>(false);
-  const metronomeIntervalRef = useRef<NodeJS.Timeout | null>(null);
-  const nextMetronomeTimeRef = useRef<number>(0);
+  const intervalRef = useRef<NodeJS.Timeout | null>(null);
+
+  const playClick = () => {
+    if (!audioContext) return;
+
+    const oscillator = audioContext.createOscillator();
+    const gainNode = audioContext.createGain();
+
+    oscillator.connect(gainNode);
+    gainNode.connect(audioContext.destination);
+
+    oscillator.frequency.setValueAtTime(800, audioContext.currentTime);
+    oscillator.type = "sine";
+
+    gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+    gainNode.gain.exponentialRampToValueAtTime(
+      0.01,
+      audioContext.currentTime + 0.1,
+    );
+
+    oscillator.start(audioContext.currentTime);
+    oscillator.stop(audioContext.currentTime + 0.1);
+  };
 
   useEffect(() => {
     if (isMetronomeActive && audioContext) {
-      const scheduleMetronomeClick = () => {
-        if (!isMetronomeActive || !audioContext) return; // Double check, in case state changed
+      const interval = 60000 / bpm; // Convert BPM to milliseconds
 
-        // Synthesize a simple click sound
-        const clickOsc = audioContext.createOscillator();
-        const clickGain = audioContext.createGain();
-        clickOsc.type = "triangle"; // A short triangle wave can sound like a click
-        clickOsc.frequency.setValueAtTime(880, audioContext.currentTime); // A4 pitch
-        clickGain.gain.setValueAtTime(1, audioContext.currentTime);
-        clickGain.gain.exponentialRampToValueAtTime(
-          0.001,
-          audioContext.currentTime + 0.05,
-        );
-        clickOsc.connect(clickGain).connect(audioContext.destination);
+      playClick(); // Play immediately
 
-        clickOsc.start(nextMetronomeTimeRef.current);
-        clickOsc.stop(nextMetronomeTimeRef.current + 0.05);
-
-        // Calculate next click time
-        const secondsPerBeat = 60 / bpm;
-        nextMetronomeTimeRef.current += secondsPerBeat;
-
-        // Schedule the next one
-        const lookahead = 0.1; // 100ms (how far ahead to schedule audio)
-        if (
-          nextMetronomeTimeRef.current <
-          audioContext.currentTime + lookahead + secondsPerBeat
-        ) {
-          // Check if we need to schedule more
-          // Schedule the next call to this function shortly before the next beat
-          if (metronomeIntervalRef.current)
-            clearInterval(metronomeIntervalRef.current);
-          metronomeIntervalRef.current = setTimeout(
-            scheduleMetronomeClick,
-            (nextMetronomeTimeRef.current -
-              audioContext.currentTime -
-              lookahead) *
-              1000,
-          );
-        }
-      };
-
-      nextMetronomeTimeRef.current = audioContext.currentTime; // Start immediately on the next available tick
-      scheduleMetronomeClick(); // Start the scheduler
+      intervalRef.current = setInterval(() => {
+        playClick();
+      }, interval);
     } else {
-      if (metronomeIntervalRef.current) {
-        clearInterval(metronomeIntervalRef.current);
-        metronomeIntervalRef.current = null;
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+        intervalRef.current = null;
       }
-      nextMetronomeTimeRef.current = 0;
     }
 
     return () => {
-      if (metronomeIntervalRef.current) {
-        clearInterval(metronomeIntervalRef.current);
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+        intervalRef.current = null;
       }
     };
   }, [isMetronomeActive, audioContext, bpm]);
