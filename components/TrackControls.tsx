@@ -1,7 +1,3 @@
-import React from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import {
   GaugeIcon as MetronomeIcon,
   DiscIcon as RecordIcon,
@@ -10,11 +6,17 @@ import {
   RotateCcwIcon,
   TrashIcon,
 } from "lucide-react";
-import { TrackLog, TrackEvent, FreeTrackEvent, RecordingMode } from "@/lib/types";
+
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { useMetronome } from "@/lib/hooks/useMetronome";
 import { cn } from "@/lib/utils";
 
-interface TrackControlsProps {
-  trackLog: TrackLog;
+import type { TrackEvent, FreeTrackEvent, RecordingMode } from "@/lib/types";
+
+interface Props {
+  audioContext: AudioContext | null;
   bpm: number;
   setBpm: React.Dispatch<React.SetStateAction<number>>;
   trackLengthBars: number;
@@ -25,16 +27,14 @@ interface TrackControlsProps {
   stopRecording: () => void;
   recordingMode: RecordingMode;
   setRecordingMode: React.Dispatch<React.SetStateAction<RecordingMode>>;
-  currentBeat: number;
-  isMetronomeActive: boolean;
-  setIsMetronomeActive: React.Dispatch<React.SetStateAction<boolean>>;
   // Track playback props
   isTrackPlaying: boolean;
   trackCurrentTime: number;
   trackDurationSeconds: number;
-  startPlayback: () => void;
-  stopPlayback: () => void;
-  playTrack: (events: (TrackEvent | FreeTrackEvent)[], mode: RecordingMode) => void;
+  playTrack: (
+    events: (TrackEvent | FreeTrackEvent)[],
+    mode: RecordingMode,
+  ) => void;
   stopTrack: () => void;
   currentEvents: (TrackEvent | FreeTrackEvent)[];
   loopEnabled: boolean;
@@ -44,7 +44,7 @@ interface TrackControlsProps {
 }
 
 export default function TrackControls({
-  trackLog,
+  audioContext,
   bpm,
   setBpm,
   trackLengthBars,
@@ -55,22 +55,16 @@ export default function TrackControls({
   stopRecording,
   recordingMode,
   setRecordingMode,
-  currentBeat,
-  isMetronomeActive,
-  setIsMetronomeActive,
   isTrackPlaying,
   trackCurrentTime,
   trackDurationSeconds,
-  startPlayback,
-  stopPlayback,
   playTrack,
   stopTrack,
   currentEvents,
   loopEnabled,
-  toggleLoop,
   toggleTrackLoop,
   clearTrack,
-}: TrackControlsProps) {
+}: Props) {
   const stepsPerBar = quantizationValue;
   const totalSteps = trackLengthBars * stepsPerBar;
   const numPads = 16;
@@ -97,7 +91,16 @@ export default function TrackControls({
     }
   };
 
-  const progressPercentage = trackDurationSeconds > 0 ? (trackCurrentTime / trackDurationSeconds) * 100 : 0;
+  const progressPercentage =
+    trackDurationSeconds > 0
+      ? (trackCurrentTime / trackDurationSeconds) * 100
+      : 0;
+
+  // Metronome scheduling logic
+  const { currentBeat, isMetronomeActive, setIsMetronomeActive } = useMetronome(
+    audioContext,
+    bpm,
+  );
 
   return (
     <Card className="bg-neutral-700 border-neutral-600 rounded-lg flex flex-col h-full">
@@ -131,7 +134,9 @@ export default function TrackControls({
             <span className="text-xs text-neutral-400">Mode:</span>
             <select
               value={recordingMode}
-              onChange={(e) => setRecordingMode(e.target.value as RecordingMode)}
+              onChange={(e) =>
+                setRecordingMode(e.target.value as RecordingMode)
+              }
               className="bg-neutral-800 border-neutral-600 text-neutral-200 p-1 rounded h-8 text-xs"
             >
               <option value="quantized">Quantized</option>
@@ -178,7 +183,11 @@ export default function TrackControls({
               } hover:bg-neutral-600`}
               disabled={currentEvents.length === 0}
             >
-              {isTrackPlaying ? <StopIcon className="w-4 h-4" /> : <PlayIcon className="w-4 h-4" />}
+              {isTrackPlaying ? (
+                <StopIcon className="w-4 h-4" />
+              ) : (
+                <PlayIcon className="w-4 h-4" />
+              )}
             </Button>
             <Button
               onClick={toggleTrackLoop}
@@ -201,7 +210,8 @@ export default function TrackControls({
           </div>
           <div className="flex items-center space-x-2">
             <span className="text-xs text-neutral-400">
-              {Math.floor(trackCurrentTime * 10) / 10}s / {Math.floor(trackDurationSeconds * 10) / 10}s
+              {Math.floor(trackCurrentTime * 10) / 10}s /{" "}
+              {Math.floor(trackDurationSeconds * 10) / 10}s
             </span>
             <div className="w-20 h-2 bg-neutral-700 rounded-full overflow-hidden">
               <div
@@ -245,7 +255,7 @@ export default function TrackControls({
                 className="relative"
                 style={{ height: `${rowHeight}px` }}
               >
-                {trackLog
+                {currentEvents
                   .filter((event) => event.padId === padIndex)
                   .map((event) => (
                     <div
@@ -260,7 +270,9 @@ export default function TrackControls({
                         }px`, // Ensure min width, slight padding
                       }}
                     >
-                      {/* <span className="text-xs text-white truncate">{event.padId}</span> */}
+                      <span className="text-xs text-white truncate">
+                        {event.padId + 1}
+                      </span>
                     </div>
                   ))}
               </div>

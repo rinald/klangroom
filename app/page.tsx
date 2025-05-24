@@ -1,25 +1,19 @@
 "use client";
 
-import React, { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import SamplePads from "@/components/SamplePads";
 import MainSampleArea from "@/components/MainSampleArea";
 import TrackControls from "@/components/TrackControls";
 import { useKeyboardControls } from "@/lib/hooks/useKeyboardControls";
+import { useTrackRecording } from "@/lib/hooks/useTrackRecording";
+import { useTrackPlayback } from "@/lib/hooks/useTrackPlayback";
 import {
   DEFAULT_BPM,
   DEFAULT_QUANTIZATION,
   DEFAULT_TRACK_LENGTH_BARS,
 } from "@/lib/constants";
 
-import type {
-  AppSample,
-  PadAssignments,
-  PadAssignment,
-  TrackLog,
-} from "@/lib/types";
-import { useMetronome } from "@/lib/hooks/useMetronome";
-import { useTrackRecording } from "@/lib/hooks/useTrackRecording";
-import { useTrackPlayback } from "@/lib/hooks/useTrackPlayback";
+import type { AppSample, PadAssignments, PadAssignment } from "@/lib/types";
 
 export default function MainPage() {
   const [audioContext, setAudioContext] = useState<AudioContext | null>(null);
@@ -45,7 +39,6 @@ export default function MainPage() {
   );
   const [quantizationValue, setQuantizationValue] =
     useState<number>(DEFAULT_QUANTIZATION);
-  const [trackLog, setTrackLog] = useState<TrackLog>([]);
 
   useEffect(() => {
     const context = new (window.AudioContext ||
@@ -208,12 +201,6 @@ export default function MainPage() {
     }
   };
 
-  // Metronome scheduling logic
-  const { currentBeat, isMetronomeActive, setIsMetronomeActive } = useMetronome(
-    audioContext,
-    bpm,
-  );
-
   // Track recording hook
   const {
     recordingMode,
@@ -222,12 +209,7 @@ export default function MainPage() {
     startRecording,
     stopRecording,
     recordEvent,
-    quantizedEvents,
-    freeEvents,
     currentEvents,
-    playbackState,
-    startPlayback,
-    stopPlayback,
     toggleLoop,
     clearTrack,
     trackDurationSeconds,
@@ -256,13 +238,7 @@ export default function MainPage() {
     trackLengthBars,
     padAssignments,
     loadedSamples,
-    playSample: playSampleById,
   });
-
-  // Legacy track log for compatibility with existing TrackControls component
-  useEffect(() => {
-    setTrackLog(quantizedEvents);
-  }, [quantizedEvents]);
 
   useKeyboardControls({ onPadDown: playPad, onPadUp: stopPad });
 
@@ -296,7 +272,7 @@ export default function MainPage() {
         <div className="flex-grow flex flex-col overflow-hidden">
           {audioContext && (
             <TrackControls
-              trackLog={trackLog}
+              audioContext={audioContext}
               bpm={bpm}
               setBpm={setBpm}
               trackLengthBars={trackLengthBars}
@@ -307,15 +283,10 @@ export default function MainPage() {
               stopRecording={stopRecording}
               recordingMode={recordingMode}
               setRecordingMode={setRecordingMode}
-              currentBeat={currentBeat}
-              isMetronomeActive={isMetronomeActive}
-              setIsMetronomeActive={setIsMetronomeActive}
               // Track playback props
               isTrackPlaying={isTrackPlaying}
               trackCurrentTime={trackCurrentTime}
               trackDurationSeconds={trackDurationSeconds}
-              startPlayback={startPlayback}
-              stopPlayback={stopPlayback}
               playTrack={playTrack}
               stopTrack={stopTrack}
               currentEvents={currentEvents}
