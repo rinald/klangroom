@@ -5,8 +5,12 @@ import { Input } from "@/components/ui/input";
 import {
   GaugeIcon as MetronomeIcon,
   DiscIcon as RecordIcon,
+  PlayIcon,
+  Square as StopIcon,
+  RotateCcwIcon,
+  TrashIcon,
 } from "lucide-react";
-import { TrackLog } from "@/lib/types";
+import { TrackLog, TrackEvent, FreeTrackEvent, RecordingMode } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
 interface TrackControlsProps {
@@ -17,11 +21,26 @@ interface TrackControlsProps {
   setTrackLengthBars: React.Dispatch<React.SetStateAction<number>>;
   quantizationValue: number;
   isRecording: boolean;
-  setIsRecording: React.Dispatch<React.SetStateAction<boolean>>;
+  setIsRecording: () => void;
+  stopRecording: () => void;
+  recordingMode: RecordingMode;
+  setRecordingMode: React.Dispatch<React.SetStateAction<RecordingMode>>;
   currentBeat: number;
   isMetronomeActive: boolean;
   setIsMetronomeActive: React.Dispatch<React.SetStateAction<boolean>>;
-  // Metronome props will be added later
+  // Track playback props
+  isTrackPlaying: boolean;
+  trackCurrentTime: number;
+  trackDurationSeconds: number;
+  startPlayback: () => void;
+  stopPlayback: () => void;
+  playTrack: (events: (TrackEvent | FreeTrackEvent)[], mode: RecordingMode) => void;
+  stopTrack: () => void;
+  currentEvents: (TrackEvent | FreeTrackEvent)[];
+  loopEnabled: boolean;
+  toggleLoop: () => void;
+  toggleTrackLoop: () => void;
+  clearTrack: () => void;
 }
 
 export default function TrackControls({
@@ -33,9 +52,24 @@ export default function TrackControls({
   quantizationValue,
   isRecording,
   setIsRecording,
+  stopRecording,
+  recordingMode,
+  setRecordingMode,
   currentBeat,
   isMetronomeActive,
   setIsMetronomeActive,
+  isTrackPlaying,
+  trackCurrentTime,
+  trackDurationSeconds,
+  startPlayback,
+  stopPlayback,
+  playTrack,
+  stopTrack,
+  currentEvents,
+  loopEnabled,
+  toggleLoop,
+  toggleTrackLoop,
+  clearTrack,
 }: TrackControlsProps) {
   const stepsPerBar = quantizationValue;
   const totalSteps = trackLengthBars * stepsPerBar;
@@ -44,12 +78,26 @@ export default function TrackControls({
   const stepWidth = 20; // px
 
   const handleRecordClick = () => {
-    setIsRecording(!isRecording);
+    if (isRecording) {
+      stopRecording();
+    } else {
+      setIsRecording();
+    }
   };
 
   const handleMetronomeClick = () => {
     setIsMetronomeActive(!isMetronomeActive);
   };
+
+  const handlePlayClick = () => {
+    if (isTrackPlaying) {
+      stopTrack();
+    } else {
+      playTrack(currentEvents, recordingMode);
+    }
+  };
+
+  const progressPercentage = trackDurationSeconds > 0 ? (trackCurrentTime / trackDurationSeconds) * 100 : 0;
 
   return (
     <Card className="bg-neutral-700 border-neutral-600 rounded-lg flex flex-col h-full">
@@ -59,7 +107,7 @@ export default function TrackControls({
         </CardTitle>
       </CardHeader>
       <CardContent className="flex-grow flex flex-col space-y-2 p-3 overflow-hidden">
-        {/* Track Info & Controls */}
+        {/* Track Info & Controls Row 1 */}
         <div className="flex items-center justify-between space-x-2 pb-2 border-b border-neutral-600 flex-shrink-0">
           <div className="flex items-center space-x-2">
             <span className="text-xs text-neutral-400">BPM:</span>
@@ -79,6 +127,17 @@ export default function TrackControls({
               className="w-12 bg-neutral-800 border-neutral-600 text-neutral-200 p-1 rounded h-8 text-sm text-center"
             />
           </div>
+          <div className="flex items-center space-x-2">
+            <span className="text-xs text-neutral-400">Mode:</span>
+            <select
+              value={recordingMode}
+              onChange={(e) => setRecordingMode(e.target.value as RecordingMode)}
+              className="bg-neutral-800 border-neutral-600 text-neutral-200 p-1 rounded h-8 text-xs"
+            >
+              <option value="quantized">Quantized</option>
+              <option value="free">Free</option>
+            </select>
+          </div>
           <div className="flex items-center space-x-1">
             <Button
               onClick={handleMetronomeClick}
@@ -93,6 +152,12 @@ export default function TrackControls({
                 className={cn("w-4 h-4", currentBeat % 2 && "-scale-x-100")}
               />
             </Button>
+          </div>
+        </div>
+
+        {/* Recording & Playback Controls Row 2 */}
+        <div className="flex items-center justify-between space-x-2 pb-2 border-b border-neutral-600 flex-shrink-0">
+          <div className="flex items-center space-x-1">
             <Button
               onClick={handleRecordClick}
               variant="ghost"
@@ -102,7 +167,48 @@ export default function TrackControls({
               } hover:bg-neutral-600`}
             >
               <RecordIcon className="w-4 h-4" />
+              <span className="text-xs ml-1">REC</span>
             </Button>
+            <Button
+              onClick={handlePlayClick}
+              variant="ghost"
+              size="sm"
+              className={`h-8 px-2 ${
+                isTrackPlaying ? "text-green-400" : "text-neutral-300"
+              } hover:bg-neutral-600`}
+              disabled={currentEvents.length === 0}
+            >
+              {isTrackPlaying ? <StopIcon className="w-4 h-4" /> : <PlayIcon className="w-4 h-4" />}
+            </Button>
+            <Button
+              onClick={toggleTrackLoop}
+              variant="ghost"
+              size="sm"
+              className={`h-8 px-2 ${
+                loopEnabled ? "text-blue-400" : "text-neutral-500"
+              } hover:bg-neutral-600`}
+            >
+              <RotateCcwIcon className="w-4 h-4" />
+            </Button>
+            <Button
+              onClick={clearTrack}
+              variant="ghost"
+              size="sm"
+              className="h-8 px-2 text-neutral-500 hover:bg-neutral-600 hover:text-red-400"
+            >
+              <TrashIcon className="w-4 h-4" />
+            </Button>
+          </div>
+          <div className="flex items-center space-x-2">
+            <span className="text-xs text-neutral-400">
+              {Math.floor(trackCurrentTime * 10) / 10}s / {Math.floor(trackDurationSeconds * 10) / 10}s
+            </span>
+            <div className="w-20 h-2 bg-neutral-700 rounded-full overflow-hidden">
+              <div
+                className="h-full bg-orange-400 transition-all duration-100"
+                style={{ width: `${progressPercentage}%` }}
+              />
+            </div>
           </div>
         </div>
 

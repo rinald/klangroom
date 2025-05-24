@@ -16,9 +16,10 @@ import type {
   PadAssignments,
   PadAssignment,
   TrackLog,
-  TrackEvent,
 } from "@/lib/types";
 import { useMetronome } from "@/lib/hooks/useMetronome";
+import { useTrackRecording } from "@/lib/hooks/useTrackRecording";
+import { useTrackPlayback } from "@/lib/hooks/useTrackPlayback";
 
 export default function MainPage() {
   const [audioContext, setAudioContext] = useState<AudioContext | null>(null);
@@ -45,9 +46,6 @@ export default function MainPage() {
   const [quantizationValue, setQuantizationValue] =
     useState<number>(DEFAULT_QUANTIZATION);
   const [trackLog, setTrackLog] = useState<TrackLog>([]);
-  const [isRecording, setIsRecording] = useState<boolean>(false);
-
-  const trackStartTimeRef = useRef<number | null>(null);
 
   useEffect(() => {
     const context = new (window.AudioContext ||
@@ -57,18 +55,6 @@ export default function MainPage() {
       context.close();
     };
   }, []);
-
-  useEffect(() => {
-    if (!isRecording) {
-      trackStartTimeRef.current = null;
-    }
-  }, [isRecording]);
-
-  // Metronome scheduling logic
-  const { currentBeat, isMetronomeActive, setIsMetronomeActive } = useMetronome(
-    audioContext,
-    bpm,
-  );
 
   const playSampleById = useCallback(
     (
@@ -192,86 +178,14 @@ export default function MainPage() {
     setSelectedPadForAssignment(null);
   }, []);
 
-  const recordTrackEvent = useCallback(
-    (padId: number, eventDurationSeconds: number) => {
-      if (!isRecording || !audioContext) return;
-
-      if (trackStartTimeRef.current === null) {
-        trackStartTimeRef.current = audioContext.currentTime;
-        // Optionally clear trackLog here if new recording should always start fresh
-        // setTrackLog([]);
-      }
-
-      const timeSinceTrackStart = Math.max(
-        0,
-        audioContext.currentTime - trackStartTimeRef.current,
-      );
-
-      const beatsPerBar = 4; // Common time signature
-      const totalBeatsInTrack = trackLengthBars * beatsPerBar;
-      const totalSecondsInTrack = (totalBeatsInTrack / bpm) * 60;
-
-      // Stop recording if the current time is beyond the track length
-      if (timeSinceTrackStart >= totalSecondsInTrack) {
-        console.log("Track length exceeded, stopping recording.");
-        setIsRecording(false);
-        return;
-      }
-
-      const beatsPerSecond = bpm / 60;
-      const secondsPerBeat = 1 / beatsPerSecond;
-      const stepsPerBeat = quantizationValue / (beatsPerBar / 4); // e.g. quantization 8 (1/8th notes), 4 beats -> 8 / (4/4) = 8 steps per beat (incorrect, should be 2 for 1/8th)
-      // Corrected: stepsPerBeat is effectively quantizationValue / beatsPerBar if quantization is per bar.
-      // Or more simply: secondsPerQuantizedStep directly
-      const secondsPerQuantizedStep = 60 / bpm / (quantizationValue / 4); // (secondsPerBeat) / (stepsPerBeat / beatsPerBar)
-      // Example: 120 BPM (0.5s per beat). Quantization 8 (1/8th notes) means 2 steps per beat. So 0.25s per step.
-      // (60/120) / (8/4) = 0.5 / 2 = 0.25s.
-
-      const quantizedStartTimeStep = Math.round(
-        timeSinceTrackStart / secondsPerQuantizedStep,
-      );
-      const quantizedDurationSteps = Math.max(
-        1,
-        Math.round(eventDurationSeconds / secondsPerQuantizedStep),
-      );
-
-      // Check if the event *starts* beyond the track length in quantized steps
-      const totalQuantizedStepsInTrack = trackLengthBars * quantizationValue; // If quantizationValue is steps per bar
-      if (quantizedStartTimeStep >= totalQuantizedStepsInTrack) {
-        console.log("Event starts beyond track length, stopping recording.");
-        setIsRecording(false);
-        return;
-      }
-
-      const newEvent: TrackEvent = {
-        padId,
-        startTime: quantizedStartTimeStep,
-        // Potentially cap duration so it doesn't exceed track length
-        duration: Math.min(
-          quantizedDurationSteps,
-          totalQuantizedStepsInTrack - quantizedStartTimeStep,
-        ),
-      };
-
-      console.log("New Track Event (recorded):", newEvent);
-      setTrackLog((prevLog) => [...prevLog, newEvent]);
-    },
-    [
-      isRecording,
-      audioContext,
-      bpm,
-      quantizationValue,
-      trackLengthBars,
-      setIsRecording /*, setTrackLog*/,
-    ],
-  );
-
   const playPad = (padId: number) => {
     const assignment = padAssignments[padId];
     if (assignment && loadedSamples[assignment.sampleId] && audioContext) {
       const sampleDuration = loadedSamples[assignment.sampleId].buffer.duration;
       const chopDuration = assignment.duration ?? sampleDuration;
-      recordTrackEvent(padId, chopDuration);
+
+      // Record the event using the new recording system
+      recordEvent(padId, chopDuration);
 
       playSampleById(
         assignment.sampleId,
@@ -293,6 +207,62 @@ export default function MainPage() {
       stopSampleById(assignment.sampleId);
     }
   };
+
+  // Metronome scheduling logic
+  const { currentBeat, isMetronomeActive, setIsMetronomeActive } = useMetronome(
+    audioContext,
+    bpm,
+  );
+
+  // Track recording hook
+  const {
+    recordingMode,
+    setRecordingMode,
+    isRecording,
+    startRecording,
+    stopRecording,
+    recordEvent,
+    quantizedEvents,
+    freeEvents,
+    currentEvents,
+    playbackState,
+    startPlayback,
+    stopPlayback,
+    toggleLoop,
+    clearTrack,
+    trackDurationSeconds,
+  } = useTrackRecording({
+    audioContext,
+    bpm,
+    quantization: quantizationValue,
+    trackLengthBars,
+    padAssignments,
+    loadedSamples,
+    playSample: playSampleById,
+  });
+
+  // Precise Web Audio API playback hook
+  const {
+    isPlaying: isTrackPlaying,
+    currentTime: trackCurrentTime,
+    loopEnabled,
+    playTrack,
+    stopTrack,
+    toggleLoop: toggleTrackLoop,
+  } = useTrackPlayback({
+    audioContext,
+    bpm,
+    quantization: quantizationValue,
+    trackLengthBars,
+    padAssignments,
+    loadedSamples,
+    playSample: playSampleById,
+  });
+
+  // Legacy track log for compatibility with existing TrackControls component
+  useEffect(() => {
+    setTrackLog(quantizedEvents);
+  }, [quantizedEvents]);
 
   useKeyboardControls({ onPadDown: playPad, onPadUp: stopPad });
 
@@ -333,10 +303,26 @@ export default function MainPage() {
               setTrackLengthBars={setTrackLengthBars}
               quantizationValue={quantizationValue}
               isRecording={isRecording}
-              setIsRecording={setIsRecording}
+              setIsRecording={startRecording}
+              stopRecording={stopRecording}
+              recordingMode={recordingMode}
+              setRecordingMode={setRecordingMode}
               currentBeat={currentBeat}
               isMetronomeActive={isMetronomeActive}
               setIsMetronomeActive={setIsMetronomeActive}
+              // Track playback props
+              isTrackPlaying={isTrackPlaying}
+              trackCurrentTime={trackCurrentTime}
+              trackDurationSeconds={trackDurationSeconds}
+              startPlayback={startPlayback}
+              stopPlayback={stopPlayback}
+              playTrack={playTrack}
+              stopTrack={stopTrack}
+              currentEvents={currentEvents}
+              loopEnabled={loopEnabled}
+              toggleLoop={toggleLoop}
+              toggleTrackLoop={toggleTrackLoop}
+              clearTrack={clearTrack}
             />
           )}
         </div>

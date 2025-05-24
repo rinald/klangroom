@@ -14,11 +14,44 @@ export interface PadAssignment {
 // Map Pad ID (0-15) to a PadAssignment
 export type PadAssignments = Record<number, PadAssignment | null>;
 
-// New types for track visualization
+// Track recording modes
+export type RecordingMode = 'quantized' | 'free';
+
+// Quantized track events (current implementation)
 export interface TrackEvent {
   padId: number; // Which pad (0-15)
   startTime: number; // Quantized start time (e.g., in 1/8th note steps from the beginning of the track)
   duration: number; // Quantized duration (e.g., in 1/8th note steps)
 }
 
+// Unquantized (free) track events with precise timing
+export interface FreeTrackEvent {
+  padId: number; // Which pad (0-15)
+  startTime: number; // Exact start time in seconds from track start
+  duration: number; // Exact duration in seconds
+  audioContextTime: number; // AudioContext.currentTime when event was recorded
+}
+
+// Combined track types
 export type TrackLog = TrackEvent[];
+export type FreeTrackLog = FreeTrackEvent[];
+
+// Track data that can handle both modes
+export interface Track {
+  id: string;
+  name: string;
+  mode: RecordingMode;
+  bpm: number;
+  quantization: number; // Only relevant for quantized mode
+  lengthBars: number;
+  events: TrackEvent[] | FreeTrackEvent[];
+  createdAt: number;
+}
+
+// Playback state
+export interface PlaybackState {
+  isPlaying: boolean;
+  currentTime: number; // Current playback position in seconds
+  startTime: number | null; // AudioContext time when playback started
+  loopEnabled: boolean;
+}
