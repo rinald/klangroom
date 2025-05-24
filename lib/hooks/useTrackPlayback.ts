@@ -65,15 +65,19 @@ export const useTrackPlayback = ({
       });
       scheduledAudioNodesRef.current = [];
 
-      events.forEach((event) => {
+      events.forEach(event => {
         const assignment = padAssignments[event.padId];
         if (!assignment || !loadedSamples[assignment.sampleId]) return;
 
         let eventTime: number;
-        if (mode === "quantized") {
+        let eventDuration: number;
+      
+        if (mode === 'quantized') {
           eventTime = stepToSeconds((event as TrackEvent).startTime);
+          eventDuration = stepToSeconds((event as TrackEvent).duration);
         } else {
           eventTime = (event as FreeTrackEvent).startTime;
+          eventDuration = (event as FreeTrackEvent).duration;
         }
 
         const absoluteTime = startTime + eventTime;
@@ -84,20 +88,12 @@ export const useTrackPlayback = ({
           sourceNode.buffer = loadedSamples[assignment.sampleId].buffer;
           sourceNode.connect(audioContext.destination);
 
-          if (assignment.startTime !== undefined) {
-            if (assignment.duration !== undefined) {
-              sourceNode.start(
-                absoluteTime,
-                assignment.startTime,
-                assignment.duration,
-              );
-            } else {
-              sourceNode.start(absoluteTime, assignment.startTime);
-            }
-          } else {
-            sourceNode.start(absoluteTime);
-          }
+          // Calculate the actual duration to play
+          const chopStart = assignment.startTime || 0;
+          const chopDuration = assignment.duration || sourceNode.buffer.duration;
+          const playDuration = Math.min(eventDuration, chopDuration);
 
+          sourceNode.start(absoluteTime, chopStart, playDuration);
           scheduledAudioNodesRef.current.push(sourceNode);
         }
       });

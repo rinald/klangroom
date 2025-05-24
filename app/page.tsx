@@ -27,6 +27,7 @@ export default function MainPage() {
   const activeSourcesRef = useRef<
     Record<string, { node: AudioBufferSourceNode; contextStartTime: number }[]>
   >({});
+  const keyPressStartTimes = useRef<Record<number, number>>({});
   const [activePlayingPads, setActivePlayingPads] = useState<
     Record<number, boolean>
   >({});
@@ -174,18 +175,16 @@ export default function MainPage() {
   const playPad = (padId: number) => {
     const assignment = padAssignments[padId];
     if (assignment && loadedSamples[assignment.sampleId] && audioContext) {
-      const sampleDuration = loadedSamples[assignment.sampleId].buffer.duration;
-      const chopDuration = assignment.duration ?? sampleDuration;
-
-      // Record the event using the new recording system
-      recordEvent(padId, chopDuration);
+      // Record the start time for this key press
+      keyPressStartTimes.current[padId] = audioContext.currentTime;
 
       playSampleById(
         assignment.sampleId,
         assignment.startTime,
         assignment.duration,
         () => {
-          /* Pad specific on-end logic can go here if needed */
+          // Clean up when sample ends naturally
+          delete keyPressStartTimes.current[padId];
         },
         padId,
       );
@@ -194,9 +193,20 @@ export default function MainPage() {
 
   const stopPad = (padId: number) => {
     const assignment = padAssignments[padId];
-    if (assignment && loadedSamples[assignment.sampleId]) {
-      // Find the specific source node if multiple instances of the same sample can be played by different pads
-      // For now, we assume one-to-one mapping or stop all instances of the sampleId linked to this pad.
+    if (assignment && loadedSamples[assignment.sampleId] && audioContext) {
+      // Calculate the actual duration the key was held
+      const startTime = keyPressStartTimes.current[padId];
+      if (startTime !== undefined) {
+        const actualDuration = audioContext.currentTime - startTime;
+
+        // Record the event with the actual duration
+        recordEvent(padId, actualDuration);
+
+        // Clean up
+        delete keyPressStartTimes.current[padId];
+      }
+
+      // Stop the playing sample
       stopSampleById(assignment.sampleId);
     }
   };

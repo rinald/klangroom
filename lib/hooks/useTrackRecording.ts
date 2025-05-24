@@ -153,21 +153,36 @@ export const useTrackRecording = ({
       if (!assignment || !loadedSamples[assignment.sampleId]) return;
 
       let scheduleTime: number;
+      let eventDuration: number;
       
       if (recordingMode === 'quantized') {
         scheduleTime = stepToSeconds(event.startTime);
+        // For quantized mode, use the recorded duration but convert from steps
+        eventDuration = stepToSeconds(event.duration);
       } else {
         scheduleTime = event.startTime;
+        eventDuration = event.duration;
       }
 
       const timeout = setTimeout(() => {
-        playSample(
+        const sourceNode = playSample(
           assignment.sampleId,
           assignment.startTime,
-          assignment.duration,
+          Math.min(eventDuration, assignment.duration || Infinity), // Use the shorter of recorded duration or chop duration
           undefined,
           event.padId
         );
+        
+        // Stop the sample after the recorded duration if it's shorter than the chop
+        if (sourceNode && eventDuration < (assignment.duration || Infinity)) {
+          setTimeout(() => {
+            try {
+              sourceNode.stop();
+            } catch (e) {
+              // Node might already be stopped
+            }
+          }, eventDuration * 1000);
+        }
       }, scheduleTime * 1000);
 
       scheduledEventsRef.current.push(timeout);

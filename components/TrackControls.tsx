@@ -224,6 +224,15 @@ export default function TrackControls({
 
         {/* Track Visualization Area - make it take available space and scroll if needed */}
         <div className="flex-grow bg-neutral-800 rounded-md border border-neutral-600 overflow-auto relative">
+          {/* Playback Position Indicator */}
+          {isTrackPlaying && (
+            <div
+              className="absolute top-0 bottom-0 w-0.5 bg-orange-400 z-10 pointer-events-none"
+              style={{
+                left: `${(progressPercentage / 100) * totalSteps * stepWidth}px`,
+              }}
+            />
+          )}
           {/* Grid Lines - Vertical (time steps) - ensure they cover full height */}
           {Array.from({ length: totalSteps + 1 }).map((_, stepIndex) => (
             <div
