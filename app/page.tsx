@@ -6,7 +6,6 @@ import MainSampleArea from "@/components/MainSampleArea";
 import TrackControls from "@/components/TrackControls";
 import { useKeyboardControls } from "@/lib/hooks/useKeyboardControls";
 import { useTrackRecording } from "@/lib/hooks/useTrackRecording";
-import { useTrackPlayback } from "@/lib/hooks/useTrackPlayback";
 import {
   DEFAULT_BPM,
   DEFAULT_QUANTIZATION,
@@ -220,7 +219,6 @@ export default function MainPage() {
     stopRecording,
     recordEvent,
     currentEvents,
-    toggleLoop,
     clearTrack,
     trackDurationSeconds,
   } = useTrackRecording({
@@ -231,23 +229,6 @@ export default function MainPage() {
     padAssignments,
     loadedSamples,
     playSample: playSampleById,
-  });
-
-  // Precise Web Audio API playback hook
-  const {
-    isPlaying: isTrackPlaying,
-    currentTime: trackCurrentTime,
-    loopEnabled,
-    playTrack,
-    stopTrack,
-    toggleLoop: toggleTrackLoop,
-  } = useTrackPlayback({
-    audioContext,
-    bpm,
-    quantization: quantizationValue,
-    trackLengthBars,
-    padAssignments,
-    loadedSamples,
   });
 
   useKeyboardControls({ onPadDown: playPad, onPadUp: stopPad });
@@ -285,6 +266,8 @@ export default function MainPage() {
               audioContext={audioContext}
               bpm={bpm}
               setBpm={setBpm}
+              padAssignments={padAssignments}
+              loadedSamples={loadedSamples}
               trackLengthBars={trackLengthBars}
               setTrackLengthBars={setTrackLengthBars}
               quantizationValue={quantizationValue}
@@ -293,16 +276,8 @@ export default function MainPage() {
               stopRecording={stopRecording}
               recordingMode={recordingMode}
               setRecordingMode={setRecordingMode}
-              // Track playback props
-              isTrackPlaying={isTrackPlaying}
-              trackCurrentTime={trackCurrentTime}
               trackDurationSeconds={trackDurationSeconds}
-              playTrack={playTrack}
-              stopTrack={stopTrack}
               currentEvents={currentEvents}
-              loopEnabled={loopEnabled}
-              toggleLoop={toggleLoop}
-              toggleTrackLoop={toggleTrackLoop}
               clearTrack={clearTrack}
             />
           )}

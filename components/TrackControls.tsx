@@ -7,18 +7,27 @@ import {
   TrashIcon,
 } from "lucide-react";
 
+import { cn } from "@/lib/utils";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useMetronome } from "@/lib/hooks/useMetronome";
-import { cn } from "@/lib/utils";
+import { useTrackPlayback } from "@/lib/hooks/useTrackPlayback";
 
-import type { TrackEvent, FreeTrackEvent, RecordingMode } from "@/lib/types";
+import type {
+  TrackEvent,
+  FreeTrackEvent,
+  RecordingMode,
+  PadAssignments,
+  AppSample,
+} from "@/lib/types";
 
 interface Props {
   audioContext: AudioContext | null;
   bpm: number;
   setBpm: React.Dispatch<React.SetStateAction<number>>;
+  padAssignments: PadAssignments;
+  loadedSamples: Record<string, AppSample>;
   trackLengthBars: number;
   setTrackLengthBars: React.Dispatch<React.SetStateAction<number>>;
   quantizationValue: number;
@@ -27,19 +36,8 @@ interface Props {
   stopRecording: () => void;
   recordingMode: RecordingMode;
   setRecordingMode: React.Dispatch<React.SetStateAction<RecordingMode>>;
-  // Track playback props
-  isTrackPlaying: boolean;
-  trackCurrentTime: number;
   trackDurationSeconds: number;
-  playTrack: (
-    events: (TrackEvent | FreeTrackEvent)[],
-    mode: RecordingMode,
-  ) => void;
-  stopTrack: () => void;
   currentEvents: (TrackEvent | FreeTrackEvent)[];
-  loopEnabled: boolean;
-  toggleLoop: () => void;
-  toggleTrackLoop: () => void;
   clearTrack: () => void;
 }
 
@@ -47,6 +45,8 @@ export default function TrackControls({
   audioContext,
   bpm,
   setBpm,
+  padAssignments,
+  loadedSamples,
   trackLengthBars,
   setTrackLengthBars,
   quantizationValue,
@@ -55,14 +55,8 @@ export default function TrackControls({
   stopRecording,
   recordingMode,
   setRecordingMode,
-  isTrackPlaying,
-  trackCurrentTime,
   trackDurationSeconds,
-  playTrack,
-  stopTrack,
   currentEvents,
-  loopEnabled,
-  toggleTrackLoop,
   clearTrack,
 }: Props) {
   const stepsPerBar = quantizationValue;
@@ -91,16 +85,33 @@ export default function TrackControls({
     }
   };
 
-  const progressPercentage =
-    trackDurationSeconds > 0
-      ? (trackCurrentTime / trackDurationSeconds) * 100
-      : 0;
-
   // Metronome scheduling logic
   const { currentBeat, isMetronomeActive, setIsMetronomeActive } = useMetronome(
     audioContext,
     bpm,
   );
+
+  // Precise Web Audio API playback hook
+  const {
+    isPlaying: isTrackPlaying,
+    currentTime: trackCurrentTime,
+    loopEnabled,
+    playTrack,
+    stopTrack,
+    toggleLoop: toggleTrackLoop,
+  } = useTrackPlayback({
+    audioContext,
+    bpm,
+    quantization: quantizationValue,
+    trackLengthBars,
+    padAssignments,
+    loadedSamples,
+  });
+
+  const progressPercentage =
+    trackDurationSeconds > 0
+      ? (trackCurrentTime / trackDurationSeconds) * 100
+      : 0;
 
   return (
     <Card className="bg-neutral-700 border-neutral-600 rounded-lg flex flex-col h-full">
