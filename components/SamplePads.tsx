@@ -1,5 +1,5 @@
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { keyMap } from "@/lib/hooks/useKeyboardControls";
 import { AppSample, PadAssignments, PadMode } from "@/lib/types";
 import { cn } from "@/lib/utils";
@@ -81,26 +81,24 @@ export default function SamplePads({
               variant="outline"
               className={cn(
                 "aspect-square w-full h-full p-1",
-                "border",
                 "focus:ring-2 focus:ring-offset-2 focus:ring-offset-neutral-700 focus:ring-orange-400 focus:outline-none",
                 "rounded-md transition-all duration-100 text-[9px] leading-tight break-words",
                 "flex items-center justify-center",
                 "text-lg",
-                isSelectedForAssignment &&
-                  "bg-yellow-500 border-yellow-400 text-neutral-800 ring-2 ring-yellow-300",
+                isSelectedForAssignment && "bg-secondary ring-2",
                 !isSelectedForAssignment &&
                   sample &&
                   assignment?.startTime !== undefined &&
-                  "bg-purple-600 border-purple-500 hover:bg-purple-500 text-neutral-100",
+                  "bg-sky-300 !text-neutral-800 hover:bg-sky-300/90",
                 !isSelectedForAssignment &&
                   sample &&
                   assignment?.startTime === undefined &&
-                  "bg-sky-600 border-sky-500 hover:bg-sky-500 text-neutral-100",
+                  "bg-sky-600 border-sky-500 text-neutral-100",
                 !isSelectedForAssignment &&
                   !sample &&
-                  "bg-neutral-800 border-neutral-600 hover:bg-neutral-700 text-neutral-400",
+                  "bg-secondary border-neutral-600 text-neutral-400",
                 isPlaying &&
-                  "!bg-orange-500 !border-orange-400 !text-white ring-2 ring-orange-300 ring-offset-2 ring-offset-neutral-700",
+                  "!bg-red-400 !text-white ring-2 ring-red-400 ring-offset-2 ring-offset-neutral-700",
               )}
               onClick={() => handlePadInteraction(padId)}
               data-active={isPlaying}

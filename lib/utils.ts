@@ -34,11 +34,9 @@ export function drawWaveform(
   ctx.clearRect(0, 0, displayWidth, displayHeight);
 
   if (!audioBuffer) {
-    ctx.fillStyle = "#525252"; // neutral-500 (slightly lighter for placeholder text)
-    ctx.fillRect(0, 0, displayWidth, displayHeight);
     ctx.fillStyle = "#a3a3a3"; // neutral-400
     ctx.textAlign = "center";
-    ctx.font = "12px sans-serif";
+    ctx.font = "14px Space Grotesk";
     ctx.fillText("No waveform data", displayWidth / 2, displayHeight / 2);
     return;
   }
@@ -46,9 +44,6 @@ export function drawWaveform(
   const data = audioBuffer.getChannelData(0);
   const step = Math.ceil(data.length / displayWidth);
   const amp = displayHeight / 2;
-
-  ctx.fillStyle = "#262626"; // neutral-800 background
-  ctx.fillRect(0, 0, displayWidth, displayHeight);
 
   ctx.lineWidth = 1; // Thinner line might look crisper with DPR scaling
   ctx.strokeStyle = "#38bdf8"; // A lighter, more vibrant sky blue (sky-400)
