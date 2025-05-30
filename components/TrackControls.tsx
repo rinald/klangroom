@@ -9,6 +9,13 @@ import {
 
 import { cn } from "@/lib/utils";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useMetronome } from "@/lib/hooks/useMetronome";
@@ -143,16 +150,18 @@ export default function TrackControls({
           </div>
           <div className="flex items-center space-x-2">
             <span className="text-xs text-neutral-400">Mode:</span>
-            <select
-              value={recordingMode}
-              onChange={(e) =>
-                setRecordingMode(e.target.value as RecordingMode)
-              }
-              className="bg-neutral-800 border-neutral-600 text-neutral-200 p-1 rounded h-8 text-xs"
+            <Select
+              defaultValue={recordingMode}
+              onValueChange={(value: RecordingMode) => setRecordingMode(value)}
             >
-              <option value="quantized">Quantized</option>
-              <option value="free">Free</option>
-            </select>
+              <SelectTrigger className="w-32">
+                <SelectValue placeholder="Select recording mode" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="quantized">Quantized</SelectItem>
+                <SelectItem value="free">Free</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
           <div className="flex items-center space-x-1">
             <Button
