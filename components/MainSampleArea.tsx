@@ -9,6 +9,7 @@ import {
   PauseIcon,
   SquareIcon as StopIcon,
   UploadCloudIcon,
+  KeyboardMusic,
 } from "lucide-react";
 
 interface MainSampleAreaProps {
@@ -355,7 +356,9 @@ export default function MainSampleArea({
       {/* <TransportControls /> */}
       <Card className="flex-grow rounded-lg flex flex-col">
         <CardHeader className="pb-2 pt-3 flex flex-row justify-between items-center">
-          <CardTitle className="text-sm font-medium">SAMPLE CONTROL</CardTitle>
+          <CardTitle className="text-sm font-medium">
+            <KeyboardMusic /> Klang Room
+          </CardTitle>
           <div className="flex items-center space-x-2">
             <Button asChild variant="outline" className="text-xs h-8 px-3">
               <label

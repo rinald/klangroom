@@ -122,11 +122,6 @@ export default function TrackControls({
 
   return (
     <Card className="border-neutral-600 rounded-lg flex flex-col h-full">
-      <CardHeader className="pb-2 pt-3">
-        <CardTitle className="text-neutral-200 text-sm font-medium">
-          TRACK CONTROLS
-        </CardTitle>
-      </CardHeader>
       <CardContent className="flex-grow flex flex-col space-y-2 p-3 overflow-hidden">
         {/* Track Info & Controls Row 1 */}
         <div className="flex items-center justify-between space-x-2 pb-2 border-b border-neutral-600 flex-shrink-0">

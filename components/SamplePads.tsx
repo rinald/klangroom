@@ -39,9 +39,6 @@ export default function SamplePads({
   return (
     <Card className="border-neutral-600 rounded-lg flex flex-col w-full h-full">
       <CardHeader className="py-2">
-        <CardTitle className="text-neutral-400 text-xs font-normal tracking-wider text-center">
-          PAD BANK
-        </CardTitle>
         <div className="flex justify-center gap-1 mt-1">
           <Button
             variant={padMode === "one-shot" ? "default" : "outline"}
