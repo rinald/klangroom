@@ -72,11 +72,11 @@ export function drawWaveform(
   ctx.stroke();
 
   if (selection && selection.start >= 0 && selection.end > selection.start) {
-    ctx.fillStyle = "rgba(251, 146, 60, 0.3)";
+    ctx.fillStyle = "rgba(60, 146, 251, 0.2)";
     const selectX = selection.start * displayWidth;
     const selectWidth = (selection.end - selection.start) * displayWidth;
     ctx.fillRect(selectX, 0, selectWidth, displayHeight);
-    ctx.strokeStyle = "#fb923c";
+    // ctx.strokeStyle = "#fb923c";
     ctx.lineWidth = 0.5; // Thinner selection border
     ctx.strokeRect(selectX, 0, selectWidth, displayHeight);
   }

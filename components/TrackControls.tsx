@@ -195,7 +195,7 @@ export default function TrackControls({
               variant="ghost"
               size="sm"
               className={`h-8 px-2 ${
-                isTrackPlaying ? "text-green-400" : "text-neutral-300"
+                isTrackPlaying ? "text-red-400" : "text-green-400"
               } hover:bg-neutral-600`}
               disabled={currentEvents.length === 0}
             >
@@ -231,7 +231,7 @@ export default function TrackControls({
             </span>
             <div className="w-20 h-2 bg-neutral-700 rounded-full overflow-hidden">
               <div
-                className="h-full bg-orange-400 transition-all duration-100"
+                className="h-full bg-red-400 transition-all duration-100"
                 style={{ width: `${progressPercentage}%` }}
               />
             </div>
