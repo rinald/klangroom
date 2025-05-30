@@ -2,7 +2,7 @@ import { useEffect, useCallback, useState } from "react";
 
 interface Props {
   onPadDown: (padId: number) => void;
-  onPadUp: (padId: number) => void;
+  onPadUp?: (padId: number) => void;
 }
 
 const keyMap: Record<string, number> = {
@@ -47,7 +47,9 @@ export const useKeyboardControls = ({ onPadDown, onPadUp }: Props) => {
       const padId = keyMap[key];
       if (padId !== undefined) {
         setActiveKeys((prev) => ({ ...prev, [key]: false }));
-        onPadUp(padId);
+        if (onPadUp) {
+          onPadUp(padId);
+        }
       }
     },
     [onPadUp],

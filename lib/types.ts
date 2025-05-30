@@ -17,6 +17,9 @@ export type PadAssignments = Record<number, PadAssignment | null>;
 // Track recording modes
 export type RecordingMode = 'quantized' | 'free';
 
+// Pad playback modes
+export type PadMode = 'gate' | 'one-shot';
+
 // Quantized track events (current implementation)
 export interface TrackEvent {
   padId: number; // Which pad (0-15)

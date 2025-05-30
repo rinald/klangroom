@@ -1,6 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { AppSample, PadAssignments } from "@/lib/types";
+import { AppSample, PadAssignments, PadMode } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
 const padCount = 16; // 4x4 grid
@@ -13,6 +13,8 @@ interface SamplePadsProps {
   playPad: (padId: number) => void;
   activePlayingPads: Record<number, boolean>; // To indicate which pads are currently playing
   selectedPadForAssignment: number | null; // To highlight pad selected for assignment
+  padMode: PadMode;
+  setPadMode: (mode: PadMode) => void;
 }
 
 export default function SamplePads({
@@ -22,6 +24,8 @@ export default function SamplePads({
   playPad,
   activePlayingPads,
   selectedPadForAssignment,
+  padMode,
+  setPadMode,
 }: SamplePadsProps) {
   const handlePadInteraction = (padId: number) => {
     onPadClick(padId);
@@ -37,6 +41,37 @@ export default function SamplePads({
         <CardTitle className="text-neutral-400 text-xs font-normal tracking-wider text-center">
           PAD BANK
         </CardTitle>
+        <div className="text-center text-[10px] text-neutral-500 mb-1">
+          Mode: {padMode === 'one-shot' ? 'ONE-SHOT' : 'GATE'}
+        </div>
+        <div className="flex justify-center gap-1 mt-1">
+          <Button
+            variant={padMode === 'one-shot' ? 'default' : 'outline'}
+            size="sm"
+            className={cn(
+              "text-xs px-2 py-1 h-6",
+              padMode === 'one-shot' 
+                ? "bg-orange-500 hover:bg-orange-600 text-white border-orange-400" 
+                : "bg-neutral-800 hover:bg-neutral-700 text-neutral-300 border-neutral-600"
+            )}
+            onClick={() => setPadMode('one-shot')}
+          >
+            ONE-SHOT
+          </Button>
+          <Button
+            variant={padMode === 'gate' ? 'default' : 'outline'}
+            size="sm"
+            className={cn(
+              "text-xs px-2 py-1 h-6",
+              padMode === 'gate' 
+                ? "bg-orange-500 hover:bg-orange-600 text-white border-orange-400" 
+                : "bg-neutral-800 hover:bg-neutral-700 text-neutral-300 border-neutral-600"
+            )}
+            onClick={() => setPadMode('gate')}
+          >
+            GATE
+          </Button>
+        </div>
       </CardHeader>
       <CardContent className="flex-grow grid grid-cols-4 gap-2 p-2">
         {Array.from({ length: padCount }).map((_, padId) => {
