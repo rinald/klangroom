@@ -353,17 +353,11 @@ export default function MainSampleArea({
   return (
     <div className="flex flex-col space-y-4 h-full">
       {/* <TransportControls /> */}
-      <Card className="flex-grow bg-neutral-700 border-neutral-600 rounded-lg flex flex-col">
+      <Card className="flex-grow rounded-lg flex flex-col">
         <CardHeader className="pb-2 pt-3 flex flex-row justify-between items-center">
-          <CardTitle className="text-neutral-200 text-sm font-medium">
-            SAMPLE CONTROL
-          </CardTitle>
+          <CardTitle className="text-sm font-medium">SAMPLE CONTROL</CardTitle>
           <div className="flex items-center space-x-2">
-            <Button
-              asChild
-              variant="outline"
-              className="bg-orange-500 hover:bg-orange-600 text-white text-xs h-8 px-3"
-            >
+            <Button asChild variant="outline" className="text-xs h-8 px-3">
               <label
                 htmlFor="file-upload"
                 className="cursor-pointer flex items-center"
@@ -384,7 +378,7 @@ export default function MainSampleArea({
               selection &&
               selection.end > selection.start &&
               selectedPadForAssignment === null && (
-                <p className="text-xs text-orange-400 animate-pulse">
+                <p className="text-xs text-secondary-foreground animate-pulse">
                   Click a pad to assign selection
                 </p>
               )}
@@ -394,7 +388,7 @@ export default function MainSampleArea({
               selectedPadForAssignment !== null && (
                 <Button
                   onClick={handleAssignToSelectedPad}
-                  className="bg-sky-500 hover:bg-sky-600 text-white text-xs h-8 px-3"
+                  className="bg-sky-800 hover:bg-sky-900 text-white text-xs h-8 px-3"
                 >
                   Assign to Pad {selectedPadForAssignment + 1}
                 </Button>
@@ -405,7 +399,7 @@ export default function MainSampleArea({
           <div
             onDrop={handleDrop}
             onDragOver={handleDragOver}
-            className="w-full h-[60px] border border-dashed border-neutral-500 rounded-md flex items-center justify-center bg-neutral-800/30 cursor-pointer hover:border-orange-400 transition-colors p-2"
+            className="w-full h-[60px] border border-dashed border-neutral-500 rounded-md flex items-center justify-center bg-neutral-800/30 cursor-pointer hover:border-primary transition-colors p-2"
           >
             {latestLoadedSample ? (
               <div className="text-center">
@@ -430,7 +424,7 @@ export default function MainSampleArea({
             )}
           </div>
           {/* Waveform and its controls */}
-          <div className="w-full flex-grow bg-neutral-800/50 rounded-md relative overflow-hidden border border-neutral-600 flex flex-col justify-between">
+          <div className="w-full flex-grow rounded-md relative overflow-hidden border border-neutral-600 flex flex-col justify-between">
             <canvas
               ref={waveformCanvasRef}
               width={600}
@@ -439,7 +433,7 @@ export default function MainSampleArea({
               onMouseDown={handleCanvasMouseDown}
             />
             {latestLoadedSample && (
-              <div className="p-1.5 bg-neutral-700/50 border-t border-neutral-600 flex items-center justify-center space-x-2">
+              <div className="p-1.5 border-t border-neutral-600 flex items-center justify-center space-x-2">
                 <Button
                   onClick={handlePlayPauseSample}
                   variant="ghost"

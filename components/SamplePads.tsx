@@ -37,7 +37,7 @@ export default function SamplePads({
   };
 
   return (
-    <Card className="bg-neutral-700 border-neutral-600 rounded-lg flex flex-col w-full h-full">
+    <Card className="border-neutral-600 rounded-lg flex flex-col w-full h-full">
       <CardHeader className="py-2">
         <CardTitle className="text-neutral-400 text-xs font-normal tracking-wider text-center">
           PAD BANK
@@ -49,7 +49,7 @@ export default function SamplePads({
             className={cn(
               "text-xs px-2 py-1 h-6",
               padMode === "one-shot"
-                ? "bg-orange-500 hover:bg-orange-600 text-white border-orange-400"
+                ? "bg-sky-800 hover:bg-sky-900 text-white border-orange-400"
                 : "bg-neutral-800 hover:bg-neutral-700 text-neutral-300 border-neutral-600",
             )}
             onClick={() => setPadMode("one-shot")}
@@ -62,7 +62,7 @@ export default function SamplePads({
             className={cn(
               "text-xs px-2 py-1 h-6",
               padMode === "gate"
-                ? "bg-orange-500 hover:bg-orange-600 text-white border-orange-400"
+                ? "bg-sky-800 hover:bg-sky-900 text-white border-orange-400"
                 : "bg-neutral-800 hover:bg-neutral-700 text-neutral-300 border-neutral-600",
             )}
             onClick={() => setPadMode("gate")}

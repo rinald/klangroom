@@ -121,7 +121,7 @@ export default function TrackControls({
       : 0;
 
   return (
-    <Card className="bg-neutral-700 border-neutral-600 rounded-lg flex flex-col h-full">
+    <Card className="border-neutral-600 rounded-lg flex flex-col h-full">
       <CardHeader className="pb-2 pt-3">
         <CardTitle className="text-neutral-200 text-sm font-medium">
           TRACK CONTROLS
@@ -136,7 +136,7 @@ export default function TrackControls({
               type="number"
               value={bpm}
               onChange={(e) => setBpm(Number(e.target.value))}
-              className="w-16 bg-neutral-800 border-neutral-600 text-neutral-200 p-1 rounded h-8 text-sm text-center"
+              className="w-16 border-neutral-600 text-neutral-200 p-1 rounded h-8 text-sm text-center"
             />
           </div>
           <div className="flex items-center space-x-2">
@@ -145,7 +145,7 @@ export default function TrackControls({
               type="number"
               value={trackLengthBars}
               onChange={(e) => setTrackLengthBars(Number(e.target.value))}
-              className="w-12 bg-neutral-800 border-neutral-600 text-neutral-200 p-1 rounded h-8 text-sm text-center"
+              className="w-12 border-neutral-600 text-neutral-200 p-1 rounded h-8 text-sm text-center"
             />
           </div>
           <div className="flex items-center space-x-2">
@@ -169,7 +169,7 @@ export default function TrackControls({
               variant="ghost"
               size="sm"
               className={`h-8 px-2 ${
-                isMetronomeActive ? "text-orange-400" : "text-neutral-300"
+                isMetronomeActive ? "text-white" : "text-neutral-300"
               } hover:bg-neutral-600`}
             >
               {currentBeat}
@@ -243,7 +243,7 @@ export default function TrackControls({
         </div>
 
         {/* Track Visualization Area - make it take available space and scroll if needed */}
-        <div className="flex-grow bg-neutral-800 rounded-md border border-neutral-600 overflow-auto relative">
+        <div className="flex-grow rounded-md border border-neutral-600 overflow-auto relative">
           {/* Playback Position Indicator */}
           {isTrackPlaying && (
             <div
