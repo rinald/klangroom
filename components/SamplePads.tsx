@@ -1,5 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { keyMap } from "@/lib/hooks/useKeyboardControls";
 import { AppSample, PadAssignments, PadMode } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
@@ -36,57 +37,46 @@ export default function SamplePads({
   };
 
   return (
-    <Card className="bg-neutral-700 border-neutral-600 rounded-lg flex flex-col w-full">
+    <Card className="bg-neutral-700 border-neutral-600 rounded-lg flex flex-col w-full h-full">
       <CardHeader className="py-2">
         <CardTitle className="text-neutral-400 text-xs font-normal tracking-wider text-center">
           PAD BANK
         </CardTitle>
-        <div className="text-center text-[10px] text-neutral-500 mb-1">
-          Mode: {padMode === 'one-shot' ? 'ONE-SHOT' : 'GATE'}
-        </div>
         <div className="flex justify-center gap-1 mt-1">
           <Button
-            variant={padMode === 'one-shot' ? 'default' : 'outline'}
+            variant={padMode === "one-shot" ? "default" : "outline"}
             size="sm"
             className={cn(
               "text-xs px-2 py-1 h-6",
-              padMode === 'one-shot' 
-                ? "bg-orange-500 hover:bg-orange-600 text-white border-orange-400" 
-                : "bg-neutral-800 hover:bg-neutral-700 text-neutral-300 border-neutral-600"
+              padMode === "one-shot"
+                ? "bg-orange-500 hover:bg-orange-600 text-white border-orange-400"
+                : "bg-neutral-800 hover:bg-neutral-700 text-neutral-300 border-neutral-600",
             )}
-            onClick={() => setPadMode('one-shot')}
+            onClick={() => setPadMode("one-shot")}
           >
             ONE-SHOT
           </Button>
           <Button
-            variant={padMode === 'gate' ? 'default' : 'outline'}
+            variant={padMode === "gate" ? "default" : "outline"}
             size="sm"
             className={cn(
               "text-xs px-2 py-1 h-6",
-              padMode === 'gate' 
-                ? "bg-orange-500 hover:bg-orange-600 text-white border-orange-400" 
-                : "bg-neutral-800 hover:bg-neutral-700 text-neutral-300 border-neutral-600"
+              padMode === "gate"
+                ? "bg-orange-500 hover:bg-orange-600 text-white border-orange-400"
+                : "bg-neutral-800 hover:bg-neutral-700 text-neutral-300 border-neutral-600",
             )}
-            onClick={() => setPadMode('gate')}
+            onClick={() => setPadMode("gate")}
           >
             GATE
           </Button>
         </div>
       </CardHeader>
-      <CardContent className="flex-grow grid grid-cols-4 gap-2 p-2">
+      <CardContent className="grid grid-cols-4 gap-2 p-2 my-auto">
         {Array.from({ length: padCount }).map((_, padId) => {
           const assignment = padAssignments[padId];
           const sample = assignment ? loadedSamples[assignment.sampleId] : null;
           const isPlaying = activePlayingPads[padId] || false;
           const isSelectedForAssignment = selectedPadForAssignment === padId;
-
-          let padLabel = ""; // Default to no label like KO II
-          if (sample) {
-            padLabel =
-              sample.name.substring(0, 4) +
-              (sample.name.length > 4 ? ".." : "");
-            if (assignment?.startTime !== undefined) padLabel += "[C]";
-          }
 
           return (
             <Button
@@ -98,6 +88,7 @@ export default function SamplePads({
                 "focus:ring-2 focus:ring-offset-2 focus:ring-offset-neutral-700 focus:ring-orange-400 focus:outline-none",
                 "rounded-md transition-all duration-100 text-[9px] leading-tight break-words",
                 "flex items-center justify-center",
+                "text-lg",
                 isSelectedForAssignment &&
                   "bg-yellow-500 border-yellow-400 text-neutral-800 ring-2 ring-yellow-300",
                 !isSelectedForAssignment &&
@@ -117,7 +108,7 @@ export default function SamplePads({
               onClick={() => handlePadInteraction(padId)}
               data-active={isPlaying}
             >
-              {padLabel}
+              {Object.keys(keyMap)[padId].toUpperCase()}
             </Button>
           );
         })}

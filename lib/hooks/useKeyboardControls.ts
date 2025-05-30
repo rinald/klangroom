@@ -5,7 +5,7 @@ interface Props {
   onPadUp?: (padId: number) => void;
 }
 
-const keyMap: Record<string, number> = {
+export const keyMap: Record<string, number> = {
   "1": 0,
   "2": 1,
   "3": 2,
