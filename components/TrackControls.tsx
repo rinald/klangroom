@@ -247,6 +247,8 @@ export default function TrackControls({
           numPads={numPads}
           rowHeight={rowHeight}
           currentEvents={currentEvents}
+          recordingMode={recordingMode}
+          trackDurationSeconds={trackDurationSeconds}
         />
       </CardContent>
     </Card>
