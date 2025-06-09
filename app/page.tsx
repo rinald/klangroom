@@ -12,7 +12,12 @@ import {
   DEFAULT_TRACK_LENGTH_BARS,
 } from "@/lib/constants";
 
-import type { AppSample, PadAssignments, PadAssignment, PadMode } from "@/lib/types";
+import type {
+  AppSample,
+  PadAssignments,
+  PadAssignment,
+  PadMode,
+} from "@/lib/types";
 
 export default function MainPage() {
   const [audioContext, setAudioContext] = useState<AudioContext | null>(null);
@@ -39,7 +44,7 @@ export default function MainPage() {
   );
   const [quantizationValue, setQuantizationValue] =
     useState<number>(DEFAULT_QUANTIZATION);
-  const [padMode, setPadMode] = useState<PadMode>('one-shot'); // 'one-shot': samples play to completion, 'gate': samples stop when key released
+  const [padMode, setPadMode] = useState<PadMode>("one-shot"); // 'one-shot': samples play to completion, 'gate': samples stop when key released
 
   useEffect(() => {
     const context = new (window.AudioContext ||
@@ -188,6 +193,11 @@ export default function MainPage() {
         },
         padId,
       );
+
+      // record event in one-shot mode
+      if (padMode === "one-shot") {
+        recordEvent(padId, assignment.duration!);
+      }
     }
   };
 
@@ -233,9 +243,9 @@ export default function MainPage() {
   });
 
   // In gate mode, samples stop when key is released. In one-shot mode, they play to completion.
-  useKeyboardControls({ 
-    onPadDown: playPad, 
-    onPadUp: padMode === 'gate' ? stopPad : undefined 
+  useKeyboardControls({
+    onPadDown: playPad,
+    onPadUp: padMode === "gate" ? stopPad : undefined,
   });
 
   const latestSample = latestLoadedSampleId
