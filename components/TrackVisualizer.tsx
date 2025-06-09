@@ -61,7 +61,7 @@ const TrackVisualizer = ({
                       key={`event-${event.padId}-${event.startTime}`}
                       className="absolute bg-primary/70 rounded-sm border border-primary flex items-center justify-center overflow-hidden"
                       style={{
-                        top: `${rowHeight * event.padId + 2}px`, // Small offset within the row
+                        top: "2px", // Small offset within the row
                         height: `${rowHeight - 4}px`, // Make it slightly smaller than row height
                         left: `${event.startTime * stepWidth}px`,
                         width: `${Math.max(1, event.duration) * stepWidth - 2}px`, // Ensure min width, slight padding

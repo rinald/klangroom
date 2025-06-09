@@ -287,7 +287,7 @@ export default function MainPage() {
               setTrackLengthBars={setTrackLengthBars}
               quantizationValue={quantizationValue}
               isRecording={isRecording}
-              setIsRecording={startRecording}
+              startRecording={startRecording}
               stopRecording={stopRecording}
               recordingMode={recordingMode}
               setRecordingMode={setRecordingMode}

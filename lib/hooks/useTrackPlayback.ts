@@ -32,6 +32,8 @@ export const useTrackPlayback = ({
   const schedulerTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const positionUpdateIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const scheduledAudioNodesRef = useRef<AudioBufferSourceNode[]>([]);
+  const currentEventsRef = useRef<(TrackEvent | FreeTrackEvent)[]>([]);
+  const currentModeRef = useRef<RecordingMode>('quantized');
 
   const trackDurationSeconds = (trackLengthBars * 4 * 60) / bpm;
   const lookaheadTime = 0.1; // 100ms lookahead for precise scheduling
@@ -105,6 +107,10 @@ export const useTrackPlayback = ({
     (events: (TrackEvent | FreeTrackEvent)[], mode: RecordingMode) => {
       if (!audioContext || events.length === 0) return;
 
+      // Store current events and mode for looping
+      currentEventsRef.current = events;
+      currentModeRef.current = mode;
+
       const startTime = audioContext.currentTime;
       playbackStartTimeRef.current = startTime;
       setIsPlaying(true);
@@ -123,7 +129,7 @@ export const useTrackPlayback = ({
             // Start next loop
             const nextStartTime = audioContext.currentTime;
             playbackStartTimeRef.current = nextStartTime;
-            scheduleEvents(events, mode, nextStartTime);
+            scheduleEvents(currentEventsRef.current, currentModeRef.current, nextStartTime);
 
             // Schedule next check
             schedulerTimeoutRef.current = setTimeout(
@@ -166,6 +172,9 @@ export const useTrackPlayback = ({
     setCurrentTime(0);
     playbackStartTimeRef.current = null;
 
+    // Clear stored events
+    currentEventsRef.current = [];
+
     // Clear scheduler
     if (schedulerTimeoutRef.current) {
       clearTimeout(schedulerTimeoutRef.current);
@@ -194,6 +203,62 @@ export const useTrackPlayback = ({
     setLoopEnabled((prev) => !prev);
   }, []);
 
+  const togglePlayback = useCallback(
+    (events: (TrackEvent | FreeTrackEvent)[], mode: RecordingMode) => {
+      if (isPlaying) {
+        stopTrack();
+      } else {
+        playTrack(events, mode);
+      }
+    },
+    [isPlaying, playTrack, stopTrack],
+  );
+
+  // Helper function to play events from a specific time (useful for seeking)
+  const playFromTime = useCallback(
+    (events: (TrackEvent | FreeTrackEvent)[], mode: RecordingMode, fromSeconds: number) => {
+      if (!audioContext) return;
+
+      // Stop current playback
+      stopTrack();
+
+      // Filter events that should play from the specified time
+      const futureEvents = events.filter(event => {
+        const eventTime = mode === 'quantized' 
+          ? stepToSeconds((event as TrackEvent).startTime)
+          : (event as FreeTrackEvent).startTime;
+        return eventTime >= fromSeconds;
+      });
+
+      if (futureEvents.length === 0) return;
+
+      // Adjust event times relative to the new start time
+      const adjustedEvents = futureEvents.map(event => {
+        if (mode === 'quantized') {
+          const trackEvent = event as TrackEvent;
+          const originalTime = stepToSeconds(trackEvent.startTime);
+          const adjustedSteps = Math.round((originalTime - fromSeconds) / stepToSeconds(1));
+          return {
+            ...trackEvent,
+            startTime: Math.max(0, adjustedSteps)
+          };
+        } else {
+          const freeEvent = event as FreeTrackEvent;
+          return {
+            ...freeEvent,
+            startTime: Math.max(0, freeEvent.startTime - fromSeconds)
+          };
+        }
+      });
+
+      playTrack(adjustedEvents, mode);
+      
+      // Set current time to the requested position
+      setCurrentTime(fromSeconds);
+    },
+    [audioContext, playTrack, stopTrack, stepToSeconds],
+  );
+
   // Cleanup on unmount
   useEffect(() => {
     return () => {
@@ -208,6 +273,8 @@ export const useTrackPlayback = ({
     playTrack,
     stopTrack,
     toggleLoop,
+    togglePlayback,
+    playFromTime,
     trackDurationSeconds,
   };
 };

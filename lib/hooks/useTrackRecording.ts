@@ -1,12 +1,11 @@
-import { useState, useRef, useCallback, useEffect } from 'react';
-import type { 
-  TrackEvent, 
-  FreeTrackEvent, 
-  RecordingMode, 
-  PlaybackState,
+import { useState, useRef, useCallback } from "react";
+import type {
+  TrackEvent,
+  FreeTrackEvent,
+  RecordingMode,
   PadAssignments,
-  AppSample
-} from '@/lib/types';
+  AppSample,
+} from "@/lib/types";
 
 interface UseTrackRecordingProps {
   audioContext: AudioContext | null;
@@ -20,7 +19,7 @@ interface UseTrackRecordingProps {
     startTimeOffset?: number,
     duration?: number,
     onPlaybackEnd?: () => void,
-    associatedPadId?: number
+    associatedPadId?: number,
   ) => AudioBufferSourceNode | undefined;
 }
 
@@ -29,56 +28,50 @@ export const useTrackRecording = ({
   bpm,
   quantization,
   trackLengthBars,
-  padAssignments,
-  loadedSamples,
-  playSample
 }: UseTrackRecordingProps) => {
   // Recording state
-  const [recordingMode, setRecordingMode] = useState<RecordingMode>('quantized');
+  const [recordingMode, setRecordingMode] =
+    useState<RecordingMode>("quantized");
   const [isRecording, setIsRecording] = useState(false);
   const [quantizedEvents, setQuantizedEvents] = useState<TrackEvent[]>([]);
   const [freeEvents, setFreeEvents] = useState<FreeTrackEvent[]>([]);
-  
-  // Playback state
-  const [playbackState, setPlaybackState] = useState<PlaybackState>({
-    isPlaying: false,
-    currentTime: 0,
-    startTime: null,
-    loopEnabled: true
-  });
 
   // Refs for timing
   const recordingStartTimeRef = useRef<number | null>(null);
-  const playbackIntervalRef = useRef<NodeJS.Timeout | null>(null);
-  const scheduledEventsRef = useRef<NodeJS.Timeout[]>([]);
 
   // Calculate track duration in seconds
   const trackDurationSeconds = (trackLengthBars * 4 * 60) / bpm;
 
   // Quantization helpers
-  const getQuantizedTime = useCallback((timeSeconds: number) => {
-    const beatsPerSecond = bpm / 60;
-    const stepsPerBeat = quantization / 4; // e.g., 16th notes = 4 steps per beat
-    const secondsPerStep = 1 / (beatsPerSecond * stepsPerBeat);
-    return Math.round(timeSeconds / secondsPerStep);
-  }, [bpm, quantization]);
+  const getQuantizedTime = useCallback(
+    (timeSeconds: number) => {
+      const beatsPerSecond = bpm / 60;
+      const stepsPerBeat = quantization / 4; // e.g., 16th notes = 4 steps per beat
+      const secondsPerStep = 1 / (beatsPerSecond * stepsPerBeat);
+      return Math.round(timeSeconds / secondsPerStep);
+    },
+    [bpm, quantization],
+  );
 
-  const stepToSeconds = useCallback((step: number) => {
-    const beatsPerSecond = bpm / 60;
-    const stepsPerBeat = quantization / 4;
-    const secondsPerStep = 1 / (beatsPerSecond * stepsPerBeat);
-    return step * secondsPerStep;
-  }, [bpm, quantization]);
+  const stepToSeconds = useCallback(
+    (step: number) => {
+      const beatsPerSecond = bpm / 60;
+      const stepsPerBeat = quantization / 4;
+      const secondsPerStep = 1 / (beatsPerSecond * stepsPerBeat);
+      return step * secondsPerStep;
+    },
+    [bpm, quantization],
+  );
 
   // Recording functions
   const startRecording = useCallback(() => {
     if (!audioContext) return;
-    
+
     setIsRecording(true);
     recordingStartTimeRef.current = audioContext.currentTime;
-    
+
     // Clear previous recordings based on mode
-    if (recordingMode === 'quantized') {
+    if (recordingMode === "quantized") {
       setQuantizedEvents([]);
     } else {
       setFreeEvents([]);
@@ -90,194 +83,89 @@ export const useTrackRecording = ({
     recordingStartTimeRef.current = null;
   }, []);
 
-  const recordEvent = useCallback((padId: number, duration: number) => {
-    if (!isRecording || !audioContext || recordingStartTimeRef.current === null) {
-      return;
-    }
-
-    const currentTime = audioContext.currentTime;
-    const timeFromStart = currentTime - recordingStartTimeRef.current;
-
-    // Don't record if beyond track length
-    if (timeFromStart >= trackDurationSeconds) {
-      console.log('Event beyond track length, stopping recording');
-      stopRecording();
-      return;
-    }
-
-    if (recordingMode === 'quantized') {
-      const quantizedStart = getQuantizedTime(timeFromStart);
-      const quantizedDuration = Math.max(1, getQuantizedTime(duration));
-      
-      const newEvent: TrackEvent = {
-        padId,
-        startTime: quantizedStart,
-        duration: quantizedDuration
-      };
-      
-      setQuantizedEvents(prev => [...prev, newEvent]);
-    } else {
-      // Free recording - exact timing
-      const newEvent: FreeTrackEvent = {
-        padId,
-        startTime: timeFromStart,
-        duration,
-        audioContextTime: currentTime
-      };
-      
-      setFreeEvents(prev => [...prev, newEvent]);
-    }
-  }, [isRecording, audioContext, recordingMode, trackDurationSeconds, getQuantizedTime, stopRecording]);
-
-  // Playback functions
-  const startPlayback = useCallback(() => {
-    if (!audioContext) return;
-
-    const events = recordingMode === 'quantized' ? quantizedEvents : freeEvents;
-    if (events.length === 0) return;
-
-    setPlaybackState(prev => ({
-      ...prev,
-      isPlaying: true,
-      startTime: audioContext.currentTime,
-      currentTime: 0
-    }));
-
-    // Clear any existing scheduled events
-    scheduledEventsRef.current.forEach(timeout => clearTimeout(timeout));
-    scheduledEventsRef.current = [];
-
-    // Schedule all events
-    events.forEach(event => {
-      const assignment = padAssignments[event.padId];
-      if (!assignment || !loadedSamples[assignment.sampleId]) return;
-
-      let scheduleTime: number;
-      let eventDuration: number;
-      
-      if (recordingMode === 'quantized') {
-        scheduleTime = stepToSeconds(event.startTime);
-        // For quantized mode, use the recorded duration but convert from steps
-        eventDuration = stepToSeconds(event.duration);
-      } else {
-        scheduleTime = event.startTime;
-        eventDuration = event.duration;
+  const recordEvent = useCallback(
+    (padId: number, duration: number) => {
+      if (
+        !isRecording ||
+        !audioContext ||
+        recordingStartTimeRef.current === null
+      ) {
+        return;
       }
 
-      const timeout = setTimeout(() => {
-        const sourceNode = playSample(
-          assignment.sampleId,
-          assignment.startTime,
-          Math.min(eventDuration, assignment.duration || Infinity), // Use the shorter of recorded duration or chop duration
-          undefined,
-          event.padId
-        );
-        
-        // Stop the sample after the recorded duration if it's shorter than the chop
-        if (sourceNode && eventDuration < (assignment.duration || Infinity)) {
-          setTimeout(() => {
-            try {
-              sourceNode.stop();
-            } catch (e) {
-              // Node might already be stopped
-            }
-          }, eventDuration * 1000);
-        }
-      }, scheduleTime * 1000);
+      const currentTime = audioContext.currentTime;
+      const timeFromStart = currentTime - recordingStartTimeRef.current;
 
-      scheduledEventsRef.current.push(timeout);
-    });
-
-    // Update playback position
-    playbackIntervalRef.current = setInterval(() => {
-      if (!audioContext || playbackState.startTime === null) return;
-
-      const currentTime = audioContext.currentTime - playbackState.startTime;
-      
-      if (currentTime >= trackDurationSeconds) {
-        if (playbackState.loopEnabled) {
-          // Restart playback
-          stopPlayback();
-          setTimeout(startPlayback, 10);
-        } else {
-          stopPlayback();
-        }
-      } else {
-        setPlaybackState(prev => ({
-          ...prev,
-          currentTime
-        }));
+      // Don't record if beyond track length
+      if (timeFromStart >= trackDurationSeconds) {
+        console.log("Event beyond track length, stopping recording");
+        stopRecording();
+        return;
       }
-    }, 50); // Update every 50ms for smooth position tracking
 
-  }, [audioContext, recordingMode, quantizedEvents, freeEvents, padAssignments, loadedSamples, playSample, stepToSeconds, trackDurationSeconds, playbackState.startTime, playbackState.loopEnabled]);
+      if (recordingMode === "quantized") {
+        const quantizedStart = getQuantizedTime(timeFromStart);
+        const quantizedDuration = Math.max(1, getQuantizedTime(duration));
 
-  const stopPlayback = useCallback(() => {
-    // Clear scheduled events
-    scheduledEventsRef.current.forEach(timeout => clearTimeout(timeout));
-    scheduledEventsRef.current = [];
+        const newEvent: TrackEvent = {
+          padId,
+          startTime: quantizedStart,
+          duration: quantizedDuration,
+        };
 
-    // Clear position update interval
-    if (playbackIntervalRef.current) {
-      clearInterval(playbackIntervalRef.current);
-      playbackIntervalRef.current = null;
-    }
+        setQuantizedEvents((prev) => [...prev, newEvent]);
+      } else {
+        // Free recording - exact timing
+        const newEvent: FreeTrackEvent = {
+          padId,
+          startTime: timeFromStart,
+          duration,
+          audioContextTime: currentTime,
+        };
 
-    setPlaybackState(prev => ({
-      ...prev,
-      isPlaying: false,
-      startTime: null,
-      currentTime: 0
-    }));
-  }, []);
-
-  const toggleLoop = useCallback(() => {
-    setPlaybackState(prev => ({
-      ...prev,
-      loopEnabled: !prev.loopEnabled
-    }));
-  }, []);
+        setFreeEvents((prev) => [...prev, newEvent]);
+      }
+    },
+    [
+      isRecording,
+      audioContext,
+      recordingMode,
+      trackDurationSeconds,
+      getQuantizedTime,
+      stopRecording,
+    ],
+  );
 
   const clearTrack = useCallback(() => {
     setQuantizedEvents([]);
     setFreeEvents([]);
-    stopPlayback();
-  }, [stopPlayback]);
-
-  // Cleanup on unmount
-  useEffect(() => {
-    return () => {
-      scheduledEventsRef.current.forEach(timeout => clearTimeout(timeout));
-      if (playbackIntervalRef.current) {
-        clearInterval(playbackIntervalRef.current);
-      }
-    };
   }, []);
 
+  // Helper to get current events based on mode
+  const getCurrentEvents = useCallback(() => {
+    return recordingMode === "quantized" ? quantizedEvents : freeEvents;
+  }, [recordingMode, quantizedEvents, freeEvents]);
+
   return {
-    // Recording
+    // Recording state
     recordingMode,
     setRecordingMode,
     isRecording,
+
+    // Recording controls
     startRecording,
     stopRecording,
     recordEvent,
-    
-    // Events
+
+    // Events data
     quantizedEvents,
     freeEvents,
-    currentEvents: recordingMode === 'quantized' ? quantizedEvents : freeEvents,
-    
-    // Playback
-    playbackState,
-    startPlayback,
-    stopPlayback,
-    toggleLoop,
-    
+    currentEvents: getCurrentEvents(),
+
     // Utilities
     clearTrack,
     trackDurationSeconds,
     stepToSeconds,
-    getQuantizedTime
+    getQuantizedTime,
   };
 };

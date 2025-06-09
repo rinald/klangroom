@@ -40,7 +40,7 @@ interface Props {
   setTrackLengthBars: React.Dispatch<React.SetStateAction<number>>;
   quantizationValue: number;
   isRecording: boolean;
-  setIsRecording: () => void;
+  startRecording: () => void;
   stopRecording: () => void;
   recordingMode: RecordingMode;
   setRecordingMode: React.Dispatch<React.SetStateAction<RecordingMode>>;
@@ -59,7 +59,7 @@ export default function TrackControls({
   setTrackLengthBars,
   quantizationValue,
   isRecording,
-  setIsRecording,
+  startRecording,
   stopRecording,
   recordingMode,
   setRecordingMode,
@@ -77,7 +77,7 @@ export default function TrackControls({
     if (isRecording) {
       stopRecording();
     } else {
-      setIsRecording();
+      startRecording();
     }
   };
 
