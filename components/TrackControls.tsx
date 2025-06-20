@@ -26,14 +26,12 @@ import type {
   FreeTrackEvent,
   RecordingMode,
   PadAssignments,
-  AppSample,
 } from "@/lib/types";
 import TrackVisualizer from "./TrackVisualizer";
 import useWorkspaceStore from "@/lib/stores/workspace";
 
 interface Props {
   padAssignments: PadAssignments;
-  loadedSamples: Record<string, AppSample>;
   isRecording: boolean;
   startRecording: () => void;
   stopRecording: () => void;
@@ -46,7 +44,6 @@ interface Props {
 
 export default function TrackControls({
   padAssignments,
-  loadedSamples,
   isRecording,
   startRecording,
   stopRecording,
@@ -88,13 +85,9 @@ export default function TrackControls({
     }
   };
 
-  const audioContext = useWorkspaceStore((state) => state.audioContext);
-
   // Metronome scheduling logic
-  const { currentBeat, isMetronomeActive, setIsMetronomeActive } = useMetronome(
-    audioContext,
-    bpm,
-  );
+  const { currentBeat, isMetronomeActive, setIsMetronomeActive } =
+    useMetronome();
 
   // Precise Web Audio API playback hook
   const {
@@ -106,7 +99,6 @@ export default function TrackControls({
     toggleLoop: toggleTrackLoop,
   } = useTrackPlayback({
     padAssignments,
-    loadedSamples,
   });
 
   const progressPercentage =

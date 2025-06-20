@@ -19,6 +19,7 @@ type Actions = {
   setBpm: (bpm: number) => void;
   setTrackLength: (length: number) => void;
   setQuantization: (quantization: number) => void;
+  setSamples: (samples: Record<string, AppSample>) => void;
 };
 
 const useWorkspaceStore = create<State & Actions>()(
@@ -35,6 +36,7 @@ const useWorkspaceStore = create<State & Actions>()(
     setBpm: (bpm: number) => set({ bpm }),
     setTrackLength: (length: number) => set({ trackLength: length }),
     setQuantization: (quantization: number) => set({ quantization }),
+    setSamples: (samples: Record<string, AppSample>) => set({ samples }),
   })),
 );
 

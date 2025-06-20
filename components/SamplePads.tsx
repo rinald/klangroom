@@ -1,14 +1,15 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { keyMap } from "@/lib/hooks/useKeyboardControls";
-import { AppSample, PadAssignments, PadMode } from "@/lib/types";
+import useWorkspaceStore from "@/lib/stores/workspace";
 import { cn } from "@/lib/utils";
+
+import { PadAssignments, PadMode } from "@/lib/types";
 
 const padCount = 16; // 4x4 grid
 
 interface SamplePadsProps {
   padAssignments: PadAssignments;
-  loadedSamples: Record<string, AppSample>; // Map of sampleId to AppSample
   onPadClick: (padId: number) => void; // For selecting pad for assignment OR initiating play logic via parent
   playPad: (padId: number) => void;
   activePlayingPads: Record<number, boolean>; // To indicate which pads are currently playing
@@ -19,7 +20,6 @@ interface SamplePadsProps {
 
 export default function SamplePads({
   padAssignments,
-  loadedSamples,
   onPadClick,
   playPad,
   activePlayingPads,
@@ -27,6 +27,8 @@ export default function SamplePads({
   padMode,
   setPadMode,
 }: SamplePadsProps) {
+  const samples = useWorkspaceStore((state) => state.samples);
+
   const handlePadInteraction = (padId: number) => {
     onPadClick(padId);
 
@@ -70,7 +72,7 @@ export default function SamplePads({
       <CardContent className="grid grid-cols-4 gap-2 p-2 my-auto">
         {Array.from({ length: padCount }).map((_, padId) => {
           const assignment = padAssignments[padId];
-          const sample = assignment ? loadedSamples[assignment.sampleId] : null;
+          const sample = assignment ? samples[assignment.sampleId] : null;
           const isPlaying = activePlayingPads[padId] || false;
           const isSelectedForAssignment = selectedPadForAssignment === padId;
 

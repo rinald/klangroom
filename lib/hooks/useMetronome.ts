@@ -1,9 +1,11 @@
 import { useState, useEffect, useRef } from "react";
 
-export const useMetronome = (
-  audioContext: AudioContext | null,
-  bpm: number,
-) => {
+import useWorkspaceStore from "@/lib/stores/workspace";
+
+export const useMetronome = () => {
+  const audioContext = useWorkspaceStore((state) => state.audioContext);
+  const bpm = useWorkspaceStore((state) => state.bpm);
+
   const [isMetronomeActive, setIsMetronomeActive] = useState<boolean>(false);
   const [currentBeat, setCurrentBeat] = useState(1);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);

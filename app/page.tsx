@@ -17,10 +17,9 @@ import type {
 
 export default function MainPage() {
   const audioContext = useWorkspaceStore((state) => state.audioContext);
+  const samples = useWorkspaceStore((state) => state.samples);
+  const setSamples = useWorkspaceStore((state) => state.setSamples);
 
-  const [loadedSamples, setLoadedSamples] = useState<Record<string, AppSample>>(
-    {},
-  );
   const [padAssignments, setPadAssignments] = useState<PadAssignments>({});
   const [latestLoadedSampleId, setLatestLoadedSampleId] = useState<
     string | null
@@ -46,9 +45,9 @@ export default function MainPage() {
       onPlaybackEnd?: () => void,
       associatedPadId?: number,
     ): AudioBufferSourceNode | undefined => {
-      if (!audioContext || !loadedSamples[sampleId]) return undefined;
+      if (!audioContext || !samples[sampleId]) return undefined;
 
-      const sample = loadedSamples[sampleId];
+      const sample = samples[sampleId];
       const source = audioContext.createBufferSource();
       source.buffer = sample.buffer;
       source.connect(audioContext.destination);
@@ -91,7 +90,7 @@ export default function MainPage() {
       };
       return source;
     },
-    [audioContext, loadedSamples],
+    [audioContext, samples],
   ); // Removed latestLoadedSampleId from dependencies as it's not directly used for source.onended logic anymore
 
   const stopSampleById = useCallback(
@@ -134,7 +133,7 @@ export default function MainPage() {
     if (latestLoadedSampleId && isSamplePlaying(latestLoadedSampleId)) {
       stopSampleById(latestLoadedSampleId);
     }
-    setLoadedSamples((prev) => ({ ...prev, [newSample.id]: newSample }));
+    setSamples({ ...samples, [newSample.id]: newSample });
     setLatestLoadedSampleId(newSample.id);
     setSelectedPadForAssignment(null);
   };
@@ -162,7 +161,7 @@ export default function MainPage() {
 
   const playPad = (padId: number) => {
     const assignment = padAssignments[padId];
-    if (assignment && loadedSamples[assignment.sampleId] && audioContext) {
+    if (assignment && samples[assignment.sampleId] && audioContext) {
       // Record the start time for this key press
       keyPressStartTimes.current[padId] = audioContext.currentTime;
 
@@ -186,7 +185,7 @@ export default function MainPage() {
 
   const stopPad = (padId: number) => {
     const assignment = padAssignments[padId];
-    if (assignment && loadedSamples[assignment.sampleId] && audioContext) {
+    if (assignment && samples[assignment.sampleId] && audioContext) {
       // Calculate the actual duration the key was held
       const startTime = keyPressStartTimes.current[padId];
       if (startTime !== undefined) {
@@ -224,7 +223,7 @@ export default function MainPage() {
   });
 
   const latestSample = latestLoadedSampleId
-    ? loadedSamples[latestLoadedSampleId]
+    ? samples[latestLoadedSampleId]
     : null;
 
   return (
@@ -253,7 +252,6 @@ export default function MainPage() {
           {audioContext && (
             <TrackControls
               padAssignments={padAssignments}
-              loadedSamples={loadedSamples}
               isRecording={isRecording}
               startRecording={startRecording}
               stopRecording={stopRecording}
@@ -271,7 +269,6 @@ export default function MainPage() {
           {audioContext && (
             <SamplePads
               padAssignments={padAssignments}
-              loadedSamples={loadedSamples}
               onPadClick={handlePadClick}
               playPad={playPad}
               activePlayingPads={activePlayingPads}

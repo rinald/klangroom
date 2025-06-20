@@ -7,19 +7,18 @@ import type {
   FreeTrackEvent,
   RecordingMode,
   PadAssignments,
-  AppSample,
 } from "@/lib/types";
 
 type Props = {
   padAssignments: PadAssignments;
-  loadedSamples: Record<string, AppSample>;
 };
 
-export const useTrackPlayback = ({ padAssignments, loadedSamples }: Props) => {
+export const useTrackPlayback = ({ padAssignments }: Props) => {
   const audioContext = useWorkspaceStore((state) => state.audioContext);
   const bpm = useWorkspaceStore((state) => state.bpm);
   const trackLength = useWorkspaceStore((state) => state.trackLength);
   const quantization = useWorkspaceStore((state) => state.quantization);
+  const samples = useWorkspaceStore((state) => state.samples);
 
   const [isPlaying, setIsPlaying] = useState(false);
   const [loopEnabled, setLoopEnabled] = useState(true);
@@ -66,7 +65,7 @@ export const useTrackPlayback = ({ padAssignments, loadedSamples }: Props) => {
 
       events.forEach((event) => {
         const assignment = padAssignments[event.padId];
-        if (!assignment || !loadedSamples[assignment.sampleId]) return;
+        if (!assignment || !samples[assignment.sampleId]) return;
 
         let eventTime: number;
         let eventDuration: number;
@@ -84,7 +83,7 @@ export const useTrackPlayback = ({ padAssignments, loadedSamples }: Props) => {
         // Only schedule if the event is in the future (with lookahead)
         if (absoluteTime > audioContext.currentTime - lookaheadTime) {
           const sourceNode = audioContext.createBufferSource();
-          sourceNode.buffer = loadedSamples[assignment.sampleId].buffer;
+          sourceNode.buffer = samples[assignment.sampleId].buffer;
           sourceNode.connect(audioContext.destination);
 
           // Calculate the actual duration to play
@@ -98,7 +97,7 @@ export const useTrackPlayback = ({ padAssignments, loadedSamples }: Props) => {
         }
       });
     },
-    [audioContext, padAssignments, loadedSamples, stepToSeconds, lookaheadTime],
+    [audioContext, padAssignments, samples, stepToSeconds, lookaheadTime],
   );
 
   const playTrack = useCallback(
