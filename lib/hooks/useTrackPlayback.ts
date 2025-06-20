@@ -1,4 +1,7 @@
 import { useState, useRef, useCallback, useEffect } from "react";
+
+import useWorkspaceStore from "@/lib/stores/workspace";
+
 import type {
   TrackEvent,
   FreeTrackEvent,
@@ -8,22 +11,16 @@ import type {
 } from "@/lib/types";
 
 type Props = {
-  audioContext: AudioContext | null;
-  bpm: number;
-  quantization: number;
-  trackLengthBars: number;
   padAssignments: PadAssignments;
   loadedSamples: Record<string, AppSample>;
 };
 
-export const useTrackPlayback = ({
-  audioContext,
-  bpm,
-  quantization,
-  trackLengthBars,
-  padAssignments,
-  loadedSamples,
-}: Props) => {
+export const useTrackPlayback = ({ padAssignments, loadedSamples }: Props) => {
+  const audioContext = useWorkspaceStore((state) => state.audioContext);
+  const bpm = useWorkspaceStore((state) => state.bpm);
+  const trackLength = useWorkspaceStore((state) => state.trackLength);
+  const quantization = useWorkspaceStore((state) => state.quantization);
+
   const [isPlaying, setIsPlaying] = useState(false);
   const [loopEnabled, setLoopEnabled] = useState(true);
   const [currentTime, setCurrentTime] = useState(0);
@@ -33,9 +30,9 @@ export const useTrackPlayback = ({
   const positionUpdateIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const scheduledAudioNodesRef = useRef<AudioBufferSourceNode[]>([]);
   const currentEventsRef = useRef<(TrackEvent | FreeTrackEvent)[]>([]);
-  const currentModeRef = useRef<RecordingMode>('quantized');
+  const currentModeRef = useRef<RecordingMode>("quantized");
 
-  const trackDurationSeconds = (trackLengthBars * 4 * 60) / bpm;
+  const trackDurationSeconds = (trackLength * 4 * 60) / bpm;
   const lookaheadTime = 0.1; // 100ms lookahead for precise scheduling
 
   const stepToSeconds = useCallback(
@@ -67,14 +64,14 @@ export const useTrackPlayback = ({
       });
       scheduledAudioNodesRef.current = [];
 
-      events.forEach(event => {
+      events.forEach((event) => {
         const assignment = padAssignments[event.padId];
         if (!assignment || !loadedSamples[assignment.sampleId]) return;
 
         let eventTime: number;
         let eventDuration: number;
-      
-        if (mode === 'quantized') {
+
+        if (mode === "quantized") {
           eventTime = stepToSeconds((event as TrackEvent).startTime);
           eventDuration = stepToSeconds((event as TrackEvent).duration);
         } else {
@@ -92,7 +89,8 @@ export const useTrackPlayback = ({
 
           // Calculate the actual duration to play
           const chopStart = assignment.startTime || 0;
-          const chopDuration = assignment.duration || sourceNode.buffer.duration;
+          const chopDuration =
+            assignment.duration || sourceNode.buffer.duration;
           const playDuration = Math.min(eventDuration, chopDuration);
 
           sourceNode.start(absoluteTime, chopStart, playDuration);
@@ -129,7 +127,11 @@ export const useTrackPlayback = ({
             // Start next loop
             const nextStartTime = audioContext.currentTime;
             playbackStartTimeRef.current = nextStartTime;
-            scheduleEvents(currentEventsRef.current, currentModeRef.current, nextStartTime);
+            scheduleEvents(
+              currentEventsRef.current,
+              currentModeRef.current,
+              nextStartTime,
+            );
 
             // Schedule next check
             schedulerTimeoutRef.current = setTimeout(
@@ -216,43 +218,50 @@ export const useTrackPlayback = ({
 
   // Helper function to play events from a specific time (useful for seeking)
   const playFromTime = useCallback(
-    (events: (TrackEvent | FreeTrackEvent)[], mode: RecordingMode, fromSeconds: number) => {
+    (
+      events: (TrackEvent | FreeTrackEvent)[],
+      mode: RecordingMode,
+      fromSeconds: number,
+    ) => {
       if (!audioContext) return;
 
       // Stop current playback
       stopTrack();
 
       // Filter events that should play from the specified time
-      const futureEvents = events.filter(event => {
-        const eventTime = mode === 'quantized' 
-          ? stepToSeconds((event as TrackEvent).startTime)
-          : (event as FreeTrackEvent).startTime;
+      const futureEvents = events.filter((event) => {
+        const eventTime =
+          mode === "quantized"
+            ? stepToSeconds((event as TrackEvent).startTime)
+            : (event as FreeTrackEvent).startTime;
         return eventTime >= fromSeconds;
       });
 
       if (futureEvents.length === 0) return;
 
       // Adjust event times relative to the new start time
-      const adjustedEvents = futureEvents.map(event => {
-        if (mode === 'quantized') {
+      const adjustedEvents = futureEvents.map((event) => {
+        if (mode === "quantized") {
           const trackEvent = event as TrackEvent;
           const originalTime = stepToSeconds(trackEvent.startTime);
-          const adjustedSteps = Math.round((originalTime - fromSeconds) / stepToSeconds(1));
+          const adjustedSteps = Math.round(
+            (originalTime - fromSeconds) / stepToSeconds(1),
+          );
           return {
             ...trackEvent,
-            startTime: Math.max(0, adjustedSteps)
+            startTime: Math.max(0, adjustedSteps),
           };
         } else {
           const freeEvent = event as FreeTrackEvent;
           return {
             ...freeEvent,
-            startTime: Math.max(0, freeEvent.startTime - fromSeconds)
+            startTime: Math.max(0, freeEvent.startTime - fromSeconds),
           };
         }
       });
 
       playTrack(adjustedEvents, mode);
-      
+
       // Set current time to the requested position
       setCurrentTime(fromSeconds);
     },

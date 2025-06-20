@@ -7,7 +7,6 @@ import { cn } from "@/lib/utils";
 const padCount = 16; // 4x4 grid
 
 interface SamplePadsProps {
-  audioContext: AudioContext | null;
   padAssignments: PadAssignments;
   loadedSamples: Record<string, AppSample>; // Map of sampleId to AppSample
   onPadClick: (padId: number) => void; // For selecting pad for assignment OR initiating play logic via parent

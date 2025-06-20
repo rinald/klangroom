@@ -29,16 +29,11 @@ import type {
   AppSample,
 } from "@/lib/types";
 import TrackVisualizer from "./TrackVisualizer";
+import useWorkspaceStore from "@/lib/stores/workspace";
 
 interface Props {
-  audioContext: AudioContext | null;
-  bpm: number;
-  setBpm: React.Dispatch<React.SetStateAction<number>>;
   padAssignments: PadAssignments;
   loadedSamples: Record<string, AppSample>;
-  trackLengthBars: number;
-  setTrackLengthBars: React.Dispatch<React.SetStateAction<number>>;
-  quantizationValue: number;
   isRecording: boolean;
   startRecording: () => void;
   stopRecording: () => void;
@@ -50,14 +45,8 @@ interface Props {
 }
 
 export default function TrackControls({
-  audioContext,
-  bpm,
-  setBpm,
   padAssignments,
   loadedSamples,
-  trackLengthBars,
-  setTrackLengthBars,
-  quantizationValue,
   isRecording,
   startRecording,
   stopRecording,
@@ -67,8 +56,14 @@ export default function TrackControls({
   currentEvents,
   clearTrack,
 }: Props) {
-  const stepsPerBar = quantizationValue;
-  const totalSteps = trackLengthBars * stepsPerBar;
+  const bpm = useWorkspaceStore((state) => state.bpm);
+  const setBpm = useWorkspaceStore((state) => state.setBpm);
+  const trackLength = useWorkspaceStore((state) => state.trackLength);
+  const setTrackLength = useWorkspaceStore((state) => state.setTrackLength);
+  const quantization = useWorkspaceStore((state) => state.quantization);
+
+  const stepsPerBar = quantization;
+  const totalSteps = trackLength * stepsPerBar;
   const numPads = 16;
   const rowHeight = 24; // px
   const stepWidth = 20; // px
@@ -86,12 +81,14 @@ export default function TrackControls({
   };
 
   const handlePlayClick = () => {
-    if (isTrackPlaying) {
+    if (isPlaying) {
       stopTrack();
     } else {
       playTrack(currentEvents, recordingMode);
     }
   };
+
+  const audioContext = useWorkspaceStore((state) => state.audioContext);
 
   // Metronome scheduling logic
   const { currentBeat, isMetronomeActive, setIsMetronomeActive } = useMetronome(
@@ -101,25 +98,19 @@ export default function TrackControls({
 
   // Precise Web Audio API playback hook
   const {
-    isPlaying: isTrackPlaying,
-    currentTime: trackCurrentTime,
+    isPlaying,
+    currentTime,
     loopEnabled,
     playTrack,
     stopTrack,
     toggleLoop: toggleTrackLoop,
   } = useTrackPlayback({
-    audioContext,
-    bpm,
-    quantization: quantizationValue,
-    trackLengthBars,
     padAssignments,
     loadedSamples,
   });
 
   const progressPercentage =
-    trackDurationSeconds > 0
-      ? (trackCurrentTime / trackDurationSeconds) * 100
-      : 0;
+    trackDurationSeconds > 0 ? (currentTime / trackDurationSeconds) * 100 : 0;
 
   return (
     <Card className="border-neutral-600 rounded-lg flex flex-col h-full">
@@ -139,8 +130,8 @@ export default function TrackControls({
             <span className="text-xs text-neutral-400">Length (Bars):</span>
             <Input
               type="number"
-              value={trackLengthBars}
-              onChange={(e) => setTrackLengthBars(Number(e.target.value))}
+              value={trackLength}
+              onChange={(e) => setTrackLength(Number(e.target.value))}
               className="w-12 border-neutral-600 text-neutral-200 p-1 rounded h-8 text-sm text-center"
             />
           </div>
@@ -195,11 +186,11 @@ export default function TrackControls({
               variant="ghost"
               size="sm"
               className={`h-8 px-2 ${
-                isTrackPlaying ? "text-red-400" : "text-green-400"
+                isPlaying ? "text-red-400" : "text-green-400"
               } hover:bg-neutral-600`}
               disabled={currentEvents.length === 0}
             >
-              {isTrackPlaying ? (
+              {isPlaying ? (
                 <StopIcon className="w-4 h-4" />
               ) : (
                 <PlayIcon className="w-4 h-4" />
@@ -226,7 +217,7 @@ export default function TrackControls({
           </div>
           <div className="flex items-center space-x-2">
             <span className="text-xs text-neutral-400">
-              {Math.floor(trackCurrentTime * 10) / 10}s /{" "}
+              {Math.floor(currentTime * 10) / 10}s /{" "}
               {Math.floor(trackDurationSeconds * 10) / 10}s
             </span>
             <div className="w-20 h-2 bg-neutral-700 rounded-full overflow-hidden">
@@ -240,7 +231,7 @@ export default function TrackControls({
 
         {/* Track Visualization Area */}
         <TrackVisualizer
-          isTrackPlaying={isTrackPlaying}
+          isTrackPlaying={isPlaying}
           progressPercentage={progressPercentage}
           totalSteps={totalSteps}
           stepWidth={stepWidth}

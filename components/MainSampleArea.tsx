@@ -11,9 +11,9 @@ import {
   UploadCloudIcon,
   KeyboardMusic,
 } from "lucide-react";
+import useWorkspaceStore from "@/lib/stores/workspace";
 
 interface MainSampleAreaProps {
-  audioContext: AudioContext | null;
   onSampleLoad: (sample: AppSample, file?: File) => void; // Added File for potential re-use
   // We might not need currentMasterSample here if we manage global playback differently
   // currentMasterSample: AppSample | null;
@@ -38,7 +38,6 @@ interface MainSampleAreaProps {
 }
 
 export default function MainSampleArea({
-  audioContext,
   onSampleLoad,
   playSample,
   stopSample,
@@ -49,6 +48,8 @@ export default function MainSampleArea({
   clearSelectedPadForAssignment,
   getSamplePlaybackStartTime,
 }: MainSampleAreaProps) {
+  const audioContext = useWorkspaceStore((state) => state.audioContext);
+
   const fileInputRef = useRef<HTMLInputElement>(null);
   const waveformCanvasRef = useRef<HTMLCanvasElement>(null);
   const [isSelecting, setIsSelecting] = useState(false); // Renamed from isDragging for clarity

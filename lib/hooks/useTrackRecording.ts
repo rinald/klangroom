@@ -1,34 +1,15 @@
 import { useState, useRef, useCallback } from "react";
-import type {
-  TrackEvent,
-  FreeTrackEvent,
-  RecordingMode,
-  PadAssignments,
-  AppSample,
-} from "@/lib/types";
 
-interface UseTrackRecordingProps {
-  audioContext: AudioContext | null;
-  bpm: number;
-  quantization: number;
-  trackLengthBars: number;
-  padAssignments: PadAssignments;
-  loadedSamples: Record<string, AppSample>;
-  playSample: (
-    sampleId: string,
-    startTimeOffset?: number,
-    duration?: number,
-    onPlaybackEnd?: () => void,
-    associatedPadId?: number,
-  ) => AudioBufferSourceNode | undefined;
-}
+import useWorkspaceStore from "@/lib/stores/workspace";
 
-export const useTrackRecording = ({
-  audioContext,
-  bpm,
-  quantization,
-  trackLengthBars,
-}: UseTrackRecordingProps) => {
+import type { TrackEvent, FreeTrackEvent, RecordingMode } from "@/lib/types";
+
+export const useTrackRecording = () => {
+  const audioContext = useWorkspaceStore((state) => state.audioContext);
+  const bpm = useWorkspaceStore((state) => state.bpm);
+  const trackLength = useWorkspaceStore((state) => state.trackLength);
+  const quantization = useWorkspaceStore((state) => state.quantization);
+
   // Recording state
   const [recordingMode, setRecordingMode] =
     useState<RecordingMode>("quantized");
@@ -40,7 +21,7 @@ export const useTrackRecording = ({
   const recordingStartTimeRef = useRef<number | null>(null);
 
   // Calculate track duration in seconds
-  const trackDurationSeconds = (trackLengthBars * 4 * 60) / bpm;
+  const trackDurationSeconds = (trackLength * 4 * 60) / bpm;
 
   // Quantization helpers
   const getQuantizedTime = useCallback(

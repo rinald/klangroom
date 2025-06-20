@@ -1,16 +1,12 @@
 "use client";
 
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useRef, useCallback } from "react";
 import SamplePads from "@/components/SamplePads";
 import MainSampleArea from "@/components/MainSampleArea";
 import TrackControls from "@/components/TrackControls";
 import { useKeyboardControls } from "@/lib/hooks/useKeyboardControls";
 import { useTrackRecording } from "@/lib/hooks/useTrackRecording";
-import {
-  DEFAULT_BPM,
-  DEFAULT_QUANTIZATION,
-  DEFAULT_TRACK_LENGTH_BARS,
-} from "@/lib/constants";
+import useWorkspaceStore from "@/lib/stores/workspace";
 
 import type {
   AppSample,
@@ -20,7 +16,8 @@ import type {
 } from "@/lib/types";
 
 export default function MainPage() {
-  const [audioContext, setAudioContext] = useState<AudioContext | null>(null);
+  const audioContext = useWorkspaceStore((state) => state.audioContext);
+
   const [loadedSamples, setLoadedSamples] = useState<Record<string, AppSample>>(
     {},
   );
@@ -38,22 +35,8 @@ export default function MainPage() {
   const [selectedPadForAssignment, setSelectedPadForAssignment] = useState<
     number | null
   >(null);
-  const [bpm, setBpm] = useState<number>(DEFAULT_BPM);
-  const [trackLengthBars, setTrackLengthBars] = useState<number>(
-    DEFAULT_TRACK_LENGTH_BARS,
-  );
-  const [quantizationValue, setQuantizationValue] =
-    useState<number>(DEFAULT_QUANTIZATION);
-  const [padMode, setPadMode] = useState<PadMode>("one-shot"); // 'one-shot': samples play to completion, 'gate': samples stop when key released
 
-  useEffect(() => {
-    const context = new (window.AudioContext ||
-      (window as any).webkitAudioContext)();
-    setAudioContext(context);
-    return () => {
-      context.close();
-    };
-  }, []);
+  const [padMode, setPadMode] = useState<PadMode>("one-shot"); // 'one-shot': samples play to completion, 'gate': samples stop when key released
 
   const playSampleById = useCallback(
     (
@@ -232,15 +215,7 @@ export default function MainPage() {
     currentEvents,
     clearTrack,
     trackDurationSeconds,
-  } = useTrackRecording({
-    audioContext,
-    bpm,
-    quantization: quantizationValue,
-    trackLengthBars,
-    padAssignments,
-    loadedSamples,
-    playSample: playSampleById,
-  });
+  } = useTrackRecording();
 
   // In gate mode, samples stop when key is released. In one-shot mode, they play to completion.
   useKeyboardControls({
@@ -258,7 +233,6 @@ export default function MainPage() {
       <div className="flex-shrink-0">
         {audioContext && (
           <MainSampleArea
-            audioContext={audioContext}
             onSampleLoad={handleSampleLoad}
             playSample={playSampleById}
             stopSample={stopSampleById}
@@ -278,14 +252,8 @@ export default function MainPage() {
         <div className="flex-grow flex flex-col overflow-hidden">
           {audioContext && (
             <TrackControls
-              audioContext={audioContext}
-              bpm={bpm}
-              setBpm={setBpm}
               padAssignments={padAssignments}
               loadedSamples={loadedSamples}
-              trackLengthBars={trackLengthBars}
-              setTrackLengthBars={setTrackLengthBars}
-              quantizationValue={quantizationValue}
               isRecording={isRecording}
               startRecording={startRecording}
               stopRecording={stopRecording}
@@ -302,7 +270,6 @@ export default function MainPage() {
         <div className="w-1/3 flex flex-col justify-center items-center flex-none max-w-sm">
           {audioContext && (
             <SamplePads
-              audioContext={audioContext}
               padAssignments={padAssignments}
               loadedSamples={loadedSamples}
               onPadClick={handlePadClick}
