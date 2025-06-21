@@ -16,6 +16,7 @@ type State = {
 };
 
 type Actions = {
+  initAudio: () => void;
   setBpm: (bpm: number) => void;
   setTrackLength: (length: number) => void;
   setQuantization: (quantization: number) => void;
@@ -25,7 +26,6 @@ type Actions = {
 const useWorkspaceStore = create<State & Actions>()(
   devtools((set) => ({
     // state
-    audioContext: new AudioContext(),
     samples: {},
     lastSampleId: null,
     activePads: {},
@@ -33,6 +33,7 @@ const useWorkspaceStore = create<State & Actions>()(
     trackLength: 4,
     quantization: DEFAULT_QUANTIZATION,
     // actions
+    initAudio: () => set({ audioContext: new AudioContext() }),
     setBpm: (bpm: number) => set({ bpm }),
     setTrackLength: (length: number) => set({ trackLength: length }),
     setQuantization: (quantization: number) => set({ quantization }),

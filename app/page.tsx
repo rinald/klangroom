@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import SamplePads from "@/components/SamplePads";
 import MainSampleArea from "@/components/MainSampleArea";
 import TrackControls from "@/components/TrackControls";
@@ -17,6 +17,7 @@ import type {
 
 export default function MainPage() {
   const audioContext = useWorkspaceStore((state) => state.audioContext);
+  const initAudio = useWorkspaceStore((state) => state.initAudio);
   const samples = useWorkspaceStore((state) => state.samples);
   const setSamples = useWorkspaceStore((state) => state.setSamples);
 
@@ -36,6 +37,10 @@ export default function MainPage() {
   >(null);
 
   const [padMode, setPadMode] = useState<PadMode>("one-shot"); // 'one-shot': samples play to completion, 'gate': samples stop when key released
+
+  useEffect(() => {
+    initAudio();
+  }, []);
 
   const playSampleById = useCallback(
     (
